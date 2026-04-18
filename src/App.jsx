@@ -834,7 +834,7 @@ function Dashboard({games,categories,playerName,age,onStartGame,onDonate,onFeedb
           </div>
         )}
         <button onClick={onDonate} style={{width:'100%',marginTop:16,padding:'14px',border:`1px solid ${G.border}`,borderRadius:14,background:G.card,cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
-          <Heart size=14 color="#C62828"/>
+          <Heart size={14} color="#C62828"/>
           <span style={{fontSize:14,fontWeight:700,color:G.sub}}>{t('donate_nudge')}</span>
           <span style={{fontSize:11,color:G.muted}}>ko-fi.com/luckyluk ↗</span>
         </button>
