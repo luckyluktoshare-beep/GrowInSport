@@ -615,8 +615,19 @@ function FeedbackScreen({username,onClose,lang,setLang}){
     if(!message.trim()){setError(t('write_msg'));return;}
     setLoading(true);setError('');
     try{
-      const prev=await sg(feedKey,true)||[];
-      await ss(feedKey,[...prev,{id:uid(),user:username,stars,category,message:message.trim(),lang,date:new Date().toISOString()}],true);
+      const res=await fetch('https://formspree.io/f/mpqkrdal',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          user:     username,
+          stars,
+          category,
+          message:  message.trim(),
+          lang,
+          date:     new Date().toISOString(),
+        }),
+      });
+      if(!res.ok) throw new Error('Failed');
       setSubmitted(true);
     }catch{setError(t('send_error'));}
     setLoading(false);
