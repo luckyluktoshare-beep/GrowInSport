@@ -9,7 +9,7 @@ import {
   Home, List, TrendingUp, Settings, Plus, Minus,
   Play, Pause, StopCircle, ChevronLeft, Trophy,
   Timer, Check, X, Trash2, ChevronDown, ChevronUp,
-  LogOut, User, Heart, Pencil, MessageSquare, Send, Globe, Download, BarChart2
+  LogOut, User, Heart, Pencil, MessageSquare, Send, CreditCard, Globe, Download, BarChart2
 } from "lucide-react";
 
 // ─── Palette ──────────────────────────────────────────────────────
@@ -597,6 +597,187 @@ function PositionPicker({current,onSelect,onClose}){
   );
 }
 
+// ─── Payment Form ─────────────────────────────────────────────────
+function PaymentForm({amount,onSuccess,onBack}){
+  const t = useT();
+  const lang = useLang();                        // ← hoisted: was inside BLIK branch
+  const [method,setMethod]=useState(null);
+  const [processing,setProcessing]=useState(false);
+  const [cardNum,setCardNum]=useState('');
+  const [expiry, setExpiry] =useState('');
+  const [cvc,    setCvc]    =useState('');
+  const [cName,  setCName]  =useState('');
+  const [cardErr,setCardErr]=useState('');
+  const [blik,   setBlik]   =useState('');
+  const [blikErr,setBlikErr]=useState('');
+  const fmtCard=v=>v.replace(/\D/g,'').slice(0,16).replace(/(.{4})/g,'$1 ').trim();
+  const fmtExp =v=>{const d=v.replace(/\D/g,'').slice(0,4);return d.length>2?d.slice(0,2)+'/'+d.slice(2):d;};
+  const fmtBlik=v=>v.replace(/\D/g,'').slice(0,6);
+  const cardType=()=>{const n=cardNum.replace(/\s/g,'');if(n.startsWith('4'))return'VISA';if(/^5[1-5]/.test(n))return'MC';if(n.startsWith('3'))return'AMEX';return'';};
+  const submitCard=()=>{
+    const n=cardNum.replace(/\s/g,'');
+    if(n.length<16){setCardErr(t('pay_card_err1'));return;}
+    if(expiry.length<5){setCardErr(t('pay_card_err2'));return;}
+    if(cvc.length<3){setCardErr(t('pay_card_err3'));return;}
+    if(!cName.trim()){setCardErr(t('pay_card_err4'));return;}
+    setCardErr('');setProcessing(true);
+    setTimeout(()=>{setProcessing(false);onSuccess();},2200);
+  };
+  const submitBlik=()=>{
+    if(blik.length!==6){setBlikErr(t('pay_blik_err'));return;}
+    setBlikErr('');setProcessing(true);
+    setTimeout(()=>{setProcessing(false);onSuccess();},2500);
+  };
+
+  if(processing) return(
+    <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:40,gap:20}}>
+      <div style={{width:64,height:64,borderRadius:'50%',border:`5px solid ${G.border}`,borderTopColor:G.green,animation:'spin 1s linear infinite'}}/>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <div style={{fontSize:18,fontWeight:700,color:G.blue,textAlign:'center'}}>{t('pay_processing')}</div>
+      <div style={{fontSize:14,color:G.sub,textAlign:'center'}}>{t('pay_dont_close')}</div>
+    </div>
+  );
+
+  if(!method) return(
+    <div style={{padding:'24px 16px'}}>
+      <div style={{fontSize:16,fontWeight:700,color:G.text,marginBottom:6}}>{t('pay_amount')}<span style={{color:G.green,fontSize:20}}>{amount} PLN</span></div>
+      <div style={{fontSize:13,color:G.sub,marginBottom:24}}>{t('pay_choose_method')}</div>
+      <div style={{display:'flex',flexDirection:'column',gap:12}}>
+        <button onClick={()=>setMethod('blik')} style={{...card(),display:'flex',alignItems:'center',gap:16,padding:'18px',cursor:'pointer',border:`2px solid ${G.border}`,borderRadius:16,fontFamily:'inherit',textAlign:'left'}}>
+          <div style={{width:48,height:48,borderRadius:12,background:'#E41C2C',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+            <span style={{color:'white',fontWeight:900,fontSize:13,letterSpacing:.5}}>BLIK</span>
+          </div>
+          <div><div style={{fontSize:16,fontWeight:700,color:G.text}}>BLIK</div><div style={{fontSize:13,color:G.sub}}>{t('pay_blik_desc')}</div></div>
+          <ChevronDown size={18} color={G.muted} style={{marginLeft:'auto',transform:'rotate(-90deg)'}}/>
+        </button>
+        <button onClick={()=>setMethod('card')} style={{...card(),display:'flex',alignItems:'center',gap:16,padding:'18px',cursor:'pointer',border:`2px solid ${G.border}`,borderRadius:16,fontFamily:'inherit',textAlign:'left'}}>
+          <div style={{width:48,height:48,borderRadius:12,background:`linear-gradient(135deg,${G.blue},${G.blueL})`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><CreditCard size={22} color="white"/></div>
+          <div><div style={{fontSize:16,fontWeight:700,color:G.text}}>{t('pay_card_desc').split(',')[0]}</div><div style={{fontSize:13,color:G.sub}}>{t('pay_card_desc')}</div></div>
+          <ChevronDown size={18} color={G.muted} style={{marginLeft:'auto',transform:'rotate(-90deg)'}}/>
+        </button>
+      </div>
+      <div style={{textAlign:'center',marginTop:20,fontSize:12,color:G.muted}}>{t('pay_secure')}</div>
+    </div>
+  );
+
+  if(method==='card') return(
+    <div style={{padding:'24px 16px'}}>
+      <button onClick={()=>setMethod(null)} style={{background:'none',border:'none',cursor:'pointer',display:'flex',alignItems:'center',gap:4,color:G.blueL,fontSize:14,fontWeight:600,fontFamily:'inherit',marginBottom:20,padding:0}}><ChevronLeft size={16}/> {t('back_btn')}</button>
+      <div style={{background:`linear-gradient(135deg,${G.blue},#1a6ba8)`,borderRadius:16,padding:'20px',marginBottom:24,color:'white',minHeight:140,position:'relative',overflow:'hidden'}}>
+        <div style={{position:'absolute',top:-20,right:-20,width:120,height:120,borderRadius:'50%',background:'rgba(255,255,255,0.06)'}}/>
+        <div style={{fontSize:12,opacity:.65,marginBottom:12}}>{t('pay_card_num')}</div>
+        <div style={{fontSize:18,fontWeight:700,letterSpacing:2,marginBottom:16,fontFamily:'monospace'}}>{cardNum||'•••• •••• •••• ••••'}</div>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-end'}}>
+          <div><div style={{fontSize:10,opacity:.6,marginBottom:2}}>{t('pay_cardholder')}</div><div style={{fontSize:13,fontWeight:600}}>{cName||'YOUR NAME'}</div></div>
+          <div style={{textAlign:'right'}}><div style={{fontSize:10,opacity:.6,marginBottom:2}}>{t('pay_expiry')}</div><div style={{fontSize:13,fontWeight:600}}>{expiry||'MM/YY'}</div></div>
+          {cardType()&&<div style={{fontSize:15,fontWeight:900,opacity:.85}}>{cardType()}</div>}
+        </div>
+      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:12}}>
+        <div><label style={{fontSize:12,fontWeight:700,color:G.sub,display:'block',marginBottom:6}}>{t('pay_card_num')}</label><input value={cardNum} onChange={e=>setCardNum(fmtCard(e.target.value))} placeholder="1234 5678 9012 3456" inputMode="numeric" style={inp({fontFamily:'monospace',letterSpacing:1.5,fontSize:16})}/></div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+          <div><label style={{fontSize:12,fontWeight:700,color:G.sub,display:'block',marginBottom:6}}>{t('pay_expiry')}</label><input value={expiry} onChange={e=>setExpiry(fmtExp(e.target.value))} placeholder="MM/YY" inputMode="numeric" style={inp({textAlign:'center',fontSize:16,fontFamily:'monospace'})}/></div>
+          <div><label style={{fontSize:12,fontWeight:700,color:G.sub,display:'block',marginBottom:6}}>{t('pay_cvc')}</label><input value={cvc} onChange={e=>setCvc(e.target.value.replace(/\D/g,'').slice(0,4))} placeholder="•••" type="password" inputMode="numeric" style={inp({textAlign:'center',fontSize:16,fontFamily:'monospace'})}/></div>
+        </div>
+        <div><label style={{fontSize:12,fontWeight:700,color:G.sub,display:'block',marginBottom:6}}>{t('pay_cardholder')}</label><input value={cName} onChange={e=>setCName(e.target.value)} placeholder={t('pay_card_ph')} style={inp({textTransform:'uppercase',letterSpacing:.5})}/></div>
+      </div>
+      {cardErr&&<div style={{color:G.red,fontSize:13,marginTop:12,background:G.redBg,padding:'8px 12px',borderRadius:8}}>{cardErr}</div>}
+      <button onClick={submitCard} style={{...btnSt(G.green),width:'100%',padding:'16px',fontSize:16,borderRadius:14,marginTop:20,boxShadow:'0 6px 16px rgba(45,139,45,0.3)'}}><Check size={18}/> {t('pay_btn',{a:amount})}</button>
+      <div style={{textAlign:'center',marginTop:10,fontSize:11,color:G.muted}}>{t('pay_pci')}</div>
+    </div>
+  );
+
+  // BLIK
+  const blikSteps = TR.blik_steps[lang] || TR.blik_steps['EN'];
+  return(
+    <div style={{padding:'24px 16px'}}>
+      <button onClick={()=>setMethod(null)} style={{background:'none',border:'none',cursor:'pointer',display:'flex',alignItems:'center',gap:4,color:G.blueL,fontSize:14,fontWeight:600,fontFamily:'inherit',marginBottom:20,padding:0}}><ChevronLeft size={16}/> {t('back_btn')}</button>
+      <div style={{...card(),background:'#E41C2C',marginBottom:24,textAlign:'center',padding:'24px'}}>
+        <div style={{fontSize:28,fontWeight:900,color:'white',letterSpacing:2}}>BLIK</div>
+        <div style={{fontSize:13,color:'rgba(255,255,255,0.8)',marginTop:4}}>{t('pay_blik_desc')}</div>
+      </div>
+      <div style={{...card(),marginBottom:20}}>
+        <div style={{fontSize:13,fontWeight:700,color:G.text,marginBottom:12}}>{t('blik_how_title')}</div>
+        {blikSteps.map((s,i)=>(
+          <div key={i} style={{display:'flex',alignItems:'flex-start',gap:10,marginBottom:10}}>
+            <span style={{background:G.blue,color:'white',borderRadius:'50%',width:22,height:22,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:900,flexShrink:0}}>{i+1}</span>
+            <span style={{fontSize:14,color:G.sub,lineHeight:1.4}}>{s}</span>
+          </div>
+        ))}
+      </div>
+      <div>
+        <label style={{fontSize:12,fontWeight:700,color:G.sub,display:'block',marginBottom:8}}>{t('blik_code_label')}</label>
+        <input value={blik.slice(0,3)+(blik.length>3?' ':'')+blik.slice(3)} onChange={e=>setBlik(fmtBlik(e.target.value.replace(/\s/g,'')))} placeholder="000 000" inputMode="numeric" style={inp({textAlign:'center',fontSize:32,fontWeight:900,letterSpacing:8,fontFamily:'monospace',padding:'18px'})}/>
+        <div style={{fontSize:12,color:G.muted,textAlign:'center',marginTop:6}}>{t('blik_valid')}</div>
+      </div>
+      {blikErr&&<div style={{color:G.red,fontSize:13,marginTop:12,background:G.redBg,padding:'8px 12px',borderRadius:8}}>{blikErr}</div>}
+      <button onClick={submitBlik} disabled={blik.length!==6} style={{...btnSt(blik.length===6?'#E41C2C':G.muted),width:'100%',padding:'16px',fontSize:16,borderRadius:14,marginTop:20,cursor:blik.length===6?'pointer':'not-allowed'}}><Check size={18}/> {t('pay_confirm',{a:amount})}</button>
+    </div>
+  );
+}
+
+// ─── Donate Screen ────────────────────────────────────────────────
+function DonateScreen({onClose,lang,setLang}){
+  const t = useT();
+  const [selected,setSelected]=useState(null);
+  const [custom,  setCustom]  =useState('');
+  const [step,    setStep]    =useState('tiers');
+  const amount=custom!==''?(parseFloat(custom)||0):(selected!=null?DONATE_TIERS[selected].amount:0);
+
+  if(step==='done') return(
+    <div style={{minHeight:'100vh',background:G.bg,display:'flex',flexDirection:'column'}}>
+      <AppHeader title={t('donate_title')} onBack={onClose} lang={lang} setLang={setLang}/>
+      <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:32,textAlign:'center'}}>
+        <div style={{fontSize:80,marginBottom:16}}>🎉</div>
+        <div style={{fontSize:26,fontWeight:900,color:G.blue,marginBottom:8}}>{t('donate_thanks')}</div>
+        <div style={{fontSize:15,color:G.sub,lineHeight:1.7,marginBottom:32,whiteSpace:'pre-line'}}>{t('donate_thanks_msg',{a:amount})}</div>
+        <button onClick={onClose} style={{...btnSt(G.green),padding:'16px 40px',fontSize:16,borderRadius:14}}>{t('back_to_app')}</button>
+      </div>
+    </div>
+  );
+
+  if(step==='pay') return(
+    <div style={{minHeight:'100vh',background:G.bg,display:'flex',flexDirection:'column'}}>
+      <AppHeader title={t('pay_amount')+amount+' PLN'} onBack={()=>setStep('tiers')} lang={lang} setLang={setLang}/>
+      <div style={{flex:1,overflowY:'auto'}}><PaymentForm amount={amount} onSuccess={()=>setStep('done')} onBack={()=>setStep('tiers')}/></div>
+    </div>
+  );
+
+  return(
+    <div style={{minHeight:'100vh',background:G.bg,display:'flex',flexDirection:'column'}}>
+      <AppHeader title={t('donate_title')} subtitle={t('donate_sub')} onBack={onClose} lang={lang} setLang={setLang}/>
+      <div style={{padding:'20px 16px 48px',flex:1,overflowY:'auto'}}>
+        <div style={{...card(),marginBottom:20,textAlign:'center',padding:'20px 24px'}}>
+          <div style={{fontSize:32,marginBottom:8}}>❤️</div>
+          <div style={{fontSize:14,color:G.sub,lineHeight:1.8}}>{t('donate_msg')}</div>
+        </div>
+        <div style={{fontSize:12,fontWeight:700,color:G.sub,textTransform:'uppercase',letterSpacing:.5,marginBottom:12}}>{t('donate_choose')}</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:20}}>
+          {DONATE_TIERS.map((tier,i)=>(
+            <button key={i} onClick={()=>{setSelected(i);setCustom('');}} style={{padding:'18px 12px',border:`2px solid ${selected===i&&custom===''?G.green:G.border}`,borderRadius:16,background:selected===i&&custom===''?G.greenBg:G.card,cursor:'pointer',fontFamily:'inherit',display:'flex',flexDirection:'column',alignItems:'center',gap:6}}>
+              <span style={{fontSize:34}}>{tier.emoji}</span>
+              <span style={{fontSize:14,fontWeight:700,color:G.text}}>{DONATE_TIER_LABELS[tier.labelKey]?.[lang]||tier.labelKey}</span>
+              <span style={{fontSize:20,fontWeight:900,color:selected===i&&custom===''?G.green:G.blue}}>{tier.amount} PLN</span>
+            </button>
+          ))}
+        </div>
+        <div style={{...card(),marginBottom:24}}>
+          <div style={{fontSize:13,fontWeight:700,color:G.text,marginBottom:10}}>{t('donate_custom')}</div>
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            <input type="number" min="1" value={custom} onChange={e=>{setCustom(e.target.value);setSelected(null);}} placeholder={t('donate_ph')} style={inp({flex:1,fontSize:22,fontWeight:900,textAlign:'center'})}/>
+            <span style={{fontSize:16,fontWeight:700,color:G.sub,flexShrink:0}}>PLN</span>
+          </div>
+        </div>
+        <button onClick={()=>amount>0&&setStep('pay')} style={{...btnSt(amount>0?G.green:G.muted),width:'100%',padding:'18px',fontSize:17,borderRadius:14,boxShadow:amount>0?'0 6px 16px rgba(45,139,45,0.28)':'none',cursor:amount>0?'pointer':'not-allowed'}}>
+          <Heart size={20} fill={amount>0?'white':'transparent'}/>
+          {amount>0?t('donate_btn_amt',{a:amount}):t('donate_btn_sel')}
+        </button>
+        <div style={{textAlign:'center',marginTop:12,fontSize:12,color:G.muted}}>{t('donate_footer')}</div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Feedback Screen ──────────────────────────────────────────────
 function FeedbackScreen({username,onClose,lang,setLang}){
   const t = useT();
@@ -823,9 +1004,8 @@ function Dashboard({games,categories,playerName,age,onStartGame,onDonate,onFeedb
           </div>
         )}
         <button onClick={onDonate} style={{width:'100%',marginTop:16,padding:'14px',border:`1px solid ${G.border}`,borderRadius:14,background:G.card,cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
-          <Heart size=14 color="#C62828"/>
           <span style={{fontSize:14,fontWeight:700,color:G.sub}}>{t('donate_nudge')}</span>
-          <span style={{fontSize:11,color:G.muted}}>ko-fi.com/luckyluk ↗</span>
+          <Heart size={14} color="#C62828"/>
         </button>
       </div>
     </div>
@@ -3221,7 +3401,7 @@ export default function GrowInSport(){
   const handleEdit    = game => { setEditingGame(game); setView('editGame'); };
   const handleAnalyse  = game   => { setAnalysingGame(game);    setView('gameDetail');    };
   const handleCompare  = config => { setComparisonConfig(config); setView('gameCompare'); };
-  const showNav=!['newGame','activeGame','feedback','editGame','gameDetail','gameCompare'].includes(view);
+  const showNav=!['newGame','activeGame','donate','feedback','editGame','gameDetail','gameCompare'].includes(view);
 
   const ST=`@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;900&display=swap');*{box-sizing:border-box;margin:0;padding:0;}`;
 
@@ -3243,12 +3423,13 @@ export default function GrowInSport(){
         {username&&(
           <>
             <div style={{flex:1,overflowY:'auto',display:'flex',flexDirection:'column'}}>
-              {view==='dashboard' && <Dashboard    games={games} categories={categories} playerName={playerName} age={age} onStartGame={()=>setView('newGame')} onDonate={()=>window.open('https://ko-fi.com/luckyluk','_blank')} onFeedback={()=>setView('feedback')} onEdit={handleEdit} onAnalyse={handleAnalyse} {...props}/>}
+              {view==='dashboard' && <Dashboard    games={games} categories={categories} playerName={playerName} age={age} onStartGame={()=>setView('newGame')} onDonate={()=>setView('donate')} onFeedback={()=>setView('feedback')} onEdit={handleEdit} onAnalyse={handleAnalyse} {...props}/>}
               {view==='games'     && <GamesList    games={games} categories={categories} onStartGame={()=>setView('newGame')} onDelete={deleteGame} onEdit={handleEdit} onAnalyse={handleAnalyse} onCompare={handleCompare} {...props}/>}
               {view==='newGame'   && <NewGameSetup categories={categories} onStart={s=>{setGameSetup(s);setView('activeGame');}} onBack={()=>setView('games')} {...props}/>}
               {view==='activeGame'&& gameSetup && <ActiveGame setup={gameSetup} categories={categories} onEnd={g=>{sbSaveGame(g);setGames(gs=>[...gs,g]);setGameSetup(null);setView('games');}}/>}
               {view==='progress'  && <ProgressView games={games} categories={categories} {...props}/>}
-              {view==='settings'  && <SettingsPage categories={categories} setCategories={setCategories} playerName={playerName} setPlayerName={setPlayerName} age={age} setAge={setAge} username={username} onLogout={handleLogout} onDonate={()=>window.open('https://ko-fi.com/luckyluk','_blank')} onFeedback={()=>setView('feedback')} {...props}/>}
+              {view==='settings'  && <SettingsPage categories={categories} setCategories={setCategories} playerName={playerName} setPlayerName={setPlayerName} age={age} setAge={setAge} username={username} onLogout={handleLogout} onDonate={()=>setView('donate')} onFeedback={()=>setView('feedback')} {...props}/>}
+              {view==='donate'    && <DonateScreen onClose={()=>setView('dashboard')} {...props}/>}
               {view==='feedback'  && <FeedbackScreen username={username} onClose={()=>setView('settings')} {...props}/>}
               {view==='export'    && <ExportScreen games={games} categories={categories} playerName={playerName} onBack={()=>setView('progress')} {...props}/>}
               {view==='editGame'  && editingGame && <EditGame game={editingGame} categories={categories}
