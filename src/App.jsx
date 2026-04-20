@@ -692,22 +692,23 @@ function AuthScreen({onLogin,lang,setLang}){
 
   const submit=async()=>{
     const u=user.trim().toLowerCase();
-    setLoading(true);setError('');
-    if(!u){setError(t('enter_username'));setLoading(false);return;}
-    if(pin.length<6){setError(t('err_pin_short'));setLoading(false);return;}
+    setError('');
+    if(!u){setError(t('enter_username'));return;}
+    if(pin.length<6){setError(t('err_pin_short'));return;}
+    if(tab==='register'&&u.length<2){setError(t('err_user_short'));return;}
+    setLoading(true);
     try{
       if(tab==='login'){
         await sbSignIn(u, pin);
       } else {
-        if(u.length<2){setError(t('err_user_short'));setLoading(false);return;}
         await sbSignUp(u, pin);
       }
       onLogin(u);
     }catch(err){
       const msg = err?.message||'';
-      if(msg.includes('Invalid login'))      setError(t('err_wrong_pin'));
+      if(msg.includes('Invalid login'))           setError(t('err_wrong_pin'));
       else if(msg.includes('already registered')) setError(t('err_user_taken'));
-      else if(msg.includes('User already'))  setError(t('err_user_taken'));
+      else if(msg.includes('User already'))       setError(t('err_user_taken'));
       else { setError(t('err_generic')); console.error('Auth error:',err); }
     }
     setLoading(false);
@@ -834,7 +835,7 @@ function Dashboard({games,categories,playerName,age,onStartGame,onDonate,onFeedb
           </div>
         )}
         <button onClick={onDonate} style={{width:'100%',marginTop:16,padding:'14px',border:`1px solid ${G.border}`,borderRadius:14,background:G.card,cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
-          <Heart size=14 color="#C62828"/>
+          <Heart size={14} color="#C62828"/>
           <span style={{fontSize:14,fontWeight:700,color:G.sub}}>{t('donate_nudge')}</span>
           <span style={{fontSize:11,color:G.muted}}>ko-fi.com/luckyluk ↗</span>
         </button>
