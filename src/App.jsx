@@ -45,11 +45,11 @@ const TR = {
   sign_in:        { PL:'Zaloguj się',        EN:'Sign In',            DE:'Anmelden',           FR:'Se connecter',      IT:'Accedi',              ES:'Iniciar sesión'    },
   register:       { PL:'Zarejestruj',        EN:'Register',           DE:'Registrieren',       FR:"S'inscrire",        IT:'Registrati',          ES:'Registrarse'       },
   username:       { PL:'Nazwa użytkownika',  EN:'Username',           DE:'Benutzername',       FR:'Identifiant',       IT:'Nome utente',         ES:'Usuario'           },
-  pin_label:      { PL:'PIN',                EN:'PIN',                DE:'PIN',                FR:'Code PIN',          IT:'PIN',                 ES:'PIN'               },
+  pin_label:      { PL:'PIN (6 cyfr)',    EN:'PIN (6 digits)', DE:'PIN (6 Stellen)', FR:'PIN (6 chiffres)', IT:'PIN (6 cifre)', ES:'PIN (6 dígitos)' },
   create_account: { PL:'Utwórz konto',       EN:'Create Account',     DE:'Konto erstellen',    FR:'Créer un compte',   IT:'Crea account',        ES:'Crear cuenta'      },
   loading:        { PL:'Ładowanie…',         EN:'Loading…',           DE:'Laden…',             FR:'Chargement…',       IT:'Caricamento…',        ES:'Cargando…'         },
   err_user_short: { PL:'Nazwa za krótka',    EN:'Username too short', DE:'Name zu kurz',       FR:'Identifiant court', IT:'Nome troppo corto',   ES:'Usuario muy corto' },
-  err_pin_short:  { PL:'PIN min. 4 cyfry',   EN:'PIN needs 4+ digits',DE:'PIN mind. 4 Stellen',FR:'PIN min. 4 chiffres',IT:'PIN min. 4 cifre',   ES:'PIN mín. 4 dígitos'},
+  err_pin_short:  { PL:'PIN musi mieć 6 cyfr', EN:'PIN must be exactly 6 digits', DE:'PIN muss 6 Stellen haben', FR:'Le PIN doit avoir 6 chiffres', IT:'Il PIN deve avere 6 cifre', ES:'El PIN debe tener 6 dígitos' },
   err_no_account: { PL:'Konto nie istnieje', EN:'Account not found',  DE:'Konto nicht gefunden',FR:'Compte introuvable',IT:'Account non trovato', ES:'Cuenta no encontrada'},
   err_wrong_pin:  { PL:'Błędny PIN',         EN:'Incorrect PIN',      DE:'Falscher PIN',       FR:'PIN incorrect',     IT:'PIN errato',          ES:'PIN incorrecto'    },
   err_user_taken: { PL:'Nazwa zajęta',       EN:'Username taken',     DE:'Name vergeben',      FR:'Nom déjà pris',     IT:'Nome non disponibile',ES:'Usuario ocupado'   },
@@ -615,7 +615,7 @@ function FeedbackScreen({username,onClose,lang,setLang}){
     if(!message.trim()){setError(t('write_msg'));return;}
     setLoading(true);setError('');
     try{
-      const res=await fetch('https://formspree.io/f/mpqkrdal',{
+      const res=await fetch('https://formspree.io/f/REPLACE_WITH_YOUR_ID',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({
@@ -694,7 +694,7 @@ function AuthScreen({onLogin,lang,setLang}){
     const u=user.trim().toLowerCase();
     setLoading(true);setError('');
     if(!u){setError(t('enter_username'));setLoading(false);return;}
-    if(pin.length<4){setError(t('err_pin_short'));setLoading(false);return;}
+    if(pin.length<6){setError(t('err_pin_short'));setLoading(false);return;}
     try{
       if(tab==='login'){
         await sbSignIn(u, pin);
@@ -735,7 +735,7 @@ function AuthScreen({onLogin,lang,setLang}){
             </div>
             <div style={{marginBottom:20}}>
               <label style={{fontSize:13,fontWeight:700,color:G.text,display:'block',marginBottom:6}}>{t('pin_label')}</label>
-              <input type="password" inputMode="numeric" value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,'').slice(0,8))} placeholder="••••" onKeyDown={e=>e.key==='Enter'&&submit()} style={inp({letterSpacing:6,fontSize:22,fontFamily:'monospace'})}/>
+              <input type="password" inputMode="numeric" value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="••••••" onKeyDown={e=>e.key==='Enter'&&submit()} style={inp({letterSpacing:6,fontSize:22,fontFamily:'monospace'})}/>
             </div>
             {error&&<div style={{color:G.red,fontSize:13,marginBottom:14,background:G.redBg,padding:'8px 12px',borderRadius:8}}>{error}</div>}
             <button onClick={submit} disabled={!!loading} style={{...btnSt(loading?G.muted:G.green),width:'100%',padding:'14px',fontSize:16}}>
@@ -834,7 +834,7 @@ function Dashboard({games,categories,playerName,age,onStartGame,onDonate,onFeedb
           </div>
         )}
         <button onClick={onDonate} style={{width:'100%',marginTop:16,padding:'14px',border:`1px solid ${G.border}`,borderRadius:14,background:G.card,cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
-          <Heart size={14} color="#C62828"/>
+          <Heart size=14 color="#C62828"/>
           <span style={{fontSize:14,fontWeight:700,color:G.sub}}>{t('donate_nudge')}</span>
           <span style={{fontSize:11,color:G.muted}}>ko-fi.com/luckyluk ↗</span>
         </button>
