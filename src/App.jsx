@@ -1224,7 +1224,6 @@ function ActiveGame({setup,categories,onEnd}){
 
   const handleEndGame=()=>{
     if(timerState==='running') pauseTimer();
-    const ms=nowMs();
     const wall=wallNow();
     const periodMs=periodAccRef.current;
     // Close final period if not already closed
@@ -1235,7 +1234,9 @@ function ActiveGame({setup,categories,onEnd}){
       }
       return up;
     });
+    // Accumulate into total then zero out period so elapsedMins doesn't double-count
     totalAccRef.current+=periodMs;
+    periodAccRef.current=0;
     setGameEndWall(wall);
     setTimerState('ended');
     setEndScreen(true);
@@ -1873,11 +1874,6 @@ function GameDetail({game, categories, onBack, lang, setLang}){
             </div>
           ))}
         </div>
-
-        {/* ── NO STATS MESSAGE ── */}
-        {mData.every(d=>d.total===0)&&(
-          <div style={{...card(),textAlign:'center',padding:'20px',color:G.muted,fontSize:13}}>{t('no_stats')}</div>
-        )}
 
         {/* ── CATEGORY PICKER — always visible ── */}
         <>
