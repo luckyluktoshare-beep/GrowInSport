@@ -3638,7 +3638,7 @@ export default function GrowInSport(){
               {view==='dashboard' && <Dashboard    games={games} categories={categories} playerName={playerName} age={age} onStartGame={()=>setView('newGame')} onDonate={()=>window.open('https://ko-fi.com/luckyluk','_blank')} onFeedback={()=>setView('feedback')} onEdit={handleEdit} onAnalyse={handleAnalyse} onSummary={handleSummary} {...props}/>}
               {view==='games'     && <GamesList    games={games} categories={categories} onStartGame={()=>setView('newGame')} onDelete={deleteGame} onEdit={handleEdit} onAnalyse={handleAnalyse} onCompare={handleCompare} onSummary={handleSummary} {...props}/>}
               {view==='newGame'   && <NewGameSetup categories={categories} onStart={s=>{setGameSetup(s);setView('activeGame');}} onBack={()=>setView('games')} {...props}/>}
-              {view==='activeGame'&& gameSetup && <ActiveGame setup={gameSetup} categories={categories} onEnd={g=>{sbSaveGame(g);setGames(gs=>[...gs,g]);setGameSetup(null);setView('games');}}/>}
+              {view==='activeGame'&& gameSetup && <ActiveGame setup={gameSetup} categories={categories} onEnd={g=>{sbSaveGame(g);setGames(gs=>[...gs,g]);setGameSetup(null);setSummaryGame(g);setView('games');}}/>}
               {view==='progress'  && <ProgressView games={games} categories={categories} {...props}/>}
               {view==='settings'  && <SettingsPage categories={categories} setCategories={setCategories} playerName={playerName} setPlayerName={setPlayerName} age={age} setAge={setAge} username={username} onLogout={handleLogout} onDonate={()=>window.open('https://ko-fi.com/luckyluk','_blank')} onFeedback={()=>setView('feedback')} {...props}/>}
               {view==='feedback'  && <FeedbackScreen username={username} onClose={()=>setView('settings')} {...props}/>}
@@ -3662,9 +3662,9 @@ export default function GrowInSport(){
 
             </div>
             {showNav && <BottomNav view={view} setView={setView}/>}
-            {/* GameSummary overlay — renders on top of any view */}
+            {/* GameSummary overlay — fixed position, immune to parent overflow */}
             {summaryGame&&(
-              <div style={{position:'absolute',top:0,left:0,right:0,bottom:0,zIndex:50,background:G.bg,display:'flex',flexDirection:'column'}}>
+              <div style={{position:'fixed',top:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:520,bottom:0,zIndex:200,background:G.bg,display:'flex',flexDirection:'column'}}>
                 <GameSummary
                   game={summaryGame}
                   categories={categories}
