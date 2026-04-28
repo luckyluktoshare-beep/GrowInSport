@@ -927,7 +927,8 @@ function GamesList({games,categories,onStartGame,onDelete,onEdit,onAnalyse,onCom
               <GameCard game={g} categories={categories}
                 onDelete={!selectMode?onDelete:null}
                 onEdit={!selectMode?onEdit:null}
-                onAnalyse={!selectMode?onAnalyse:null}/>
+                onAnalyse={!selectMode?onAnalyse:null}
+                onSummary={!selectMode?onSummary:null}/>
             </div>
           );
         })}
@@ -3657,7 +3658,7 @@ export default function GrowInSport(){
                 }}
                 onBack={()=>{setEditingGame(null);setView('games');}}/>}
               {view==='gameDetail'&& analysingGame && <GameDetail game={analysingGame} categories={categories} onBack={()=>{setAnalysingGame(null);setView('games');}} {...props}/>}
-              /* GameSummary is now an overlay — see below */
+              {/* GameSummary is now an overlay — see below */}
               {view==='gameCompare'&& comparisonConfig && <GameComparison config={comparisonConfig} allGames={games} categories={categories} onBack={()=>{setComparisonConfig(null);setView('games');}} {...props}/>}
 
             </div>
