@@ -2837,8 +2837,12 @@ function EditGame({game, categories, onSave, onBack}){
   const inc = id => setMetrics(m=>({...m,[id]:(m[id]||0)+1}));
   const dec = id => setMetrics(m=>({...m,[id]:Math.max(0,(m[id]||0)-1)}));
 
-  const handleSave = () => {
-    onSave({...game, name:gameName.trim()||game.name, minutesPlayed:minsPlayed, position, metrics});
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    await onSave({...game, name:gameName.trim()||game.name, minutesPlayed:minsPlayed, position, metrics});
+    setSaving(false);
   };
 
   return(
@@ -2925,8 +2929,8 @@ function EditGame({game, categories, onSave, onBack}){
           </div>
         )}
 
-        <button onClick={handleSave} style={{...btnSt(G.green),width:"100%",padding:"16px",fontSize:16,borderRadius:14,boxShadow:"0 6px 16px rgba(45,139,45,0.28)"}}>
-          <Check size={18}/> {t("save_changes")}
+        <button onClick={handleSave} disabled={saving} style={{...btnSt(saving?G.muted:G.green),width:"100%",padding:"16px",fontSize:16,borderRadius:14,boxShadow:"0 6px 16px rgba(45,139,45,0.28)"}}>
+          <Check size={18}/> {saving?'Saving…':t("save_changes")}
         </button>
       </div>
       {showPosPick&&(
@@ -3631,7 +3635,17 @@ export default function GrowInSport(){
               {view==='feedback'  && <FeedbackScreen username={username} onClose={()=>setView('settings')} {...props}/>}
               {view==='export'    && <ExportScreen games={games} categories={categories} playerName={playerName} onBack={()=>setView('progress')} {...props}/>}
               {view==='editGame'  && editingGame && <EditGame game={editingGame} categories={categories}
-                onSave={g=>{sbSaveGame(g);setGames(gs=>gs.map(x=>x.id===g.id?g:x));setEditingGame(null);setView('games');}}
+                onSave={async g=>{
+                  try{
+                    await sbSaveGame(g);
+                    setGames(gs=>gs.map(x=>x.id===g.id?g:x));
+                    setEditingGame(null);
+                    setView('games');
+                  }catch(e){
+                    console.error('EditGame save failed:',e);
+                    alert('Save failed: '+e.message);
+                  }
+                }}
                 onBack={()=>{setEditingGame(null);setView('games');}}/>}
               {view==='gameDetail'&& analysingGame && <GameDetail game={analysingGame} categories={categories} onBack={()=>{setAnalysingGame(null);setView('games');}} {...props}/>}
               {view==='gameSummary'&& summaryGame && <GameSummary game={summaryGame} categories={categories} onBack={()=>{setSummaryGame(null);setView('games');}} onEdit={g=>{setEditingGame(g);setSummaryGame(null);setView('editGame');}} onAnalyse={g=>{setAnalysingGame(g);setSummaryGame(null);setView('gameDetail');}} {...props}/>}
