@@ -3602,9 +3602,9 @@ export default function GrowInSport(){
   };
   const handleEdit    = game => { setEditingGame(game); setView('editGame'); };
   const handleAnalyse  = game   => { setAnalysingGame(game);    setView('gameDetail');    };
-  const handleSummary  = game   => { setSummaryGame(game);      setView('gameSummary');   };
+  const handleSummary  = game   => { setSummaryGame(game); };
   const handleCompare  = config => { setComparisonConfig(config); setView('gameCompare'); };
-  const showNav=!['newGame','activeGame','feedback','editGame','gameDetail','gameCompare','gameSummary'].includes(view);
+  const showNav=!['newGame','activeGame','feedback','editGame','gameDetail','gameCompare'].includes(view);
 
   const ST=`@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;900&display=swap');*{box-sizing:border-box;margin:0;padding:0;}`;
 
@@ -3620,7 +3620,7 @@ export default function GrowInSport(){
 
   return(
     <LangCtx.Provider value={lang}>
-      <div style={{fontFamily:"'Nunito',system-ui,sans-serif",background:G.bg,height:'100vh',display:'flex',flexDirection:'column',maxWidth:520,margin:'0 auto',overflow:'hidden'}}>
+      <div style={{fontFamily:"'Nunito',system-ui,sans-serif",background:G.bg,height:'100vh',display:'flex',flexDirection:'column',maxWidth:520,margin:'0 auto',overflow:'hidden',position:'relative'}}>
         <style>{ST}</style>
         {!username&&<AuthScreen onLogin={handleLogin} lang={lang} setLang={setLang}/>}
         {username&&(
@@ -3648,11 +3648,23 @@ export default function GrowInSport(){
                 }}
                 onBack={()=>{setEditingGame(null);setView('games');}}/>}
               {view==='gameDetail'&& analysingGame && <GameDetail game={analysingGame} categories={categories} onBack={()=>{setAnalysingGame(null);setView('games');}} {...props}/>}
-              {view==='gameSummary'&& summaryGame && <GameSummary game={summaryGame} categories={categories} onBack={()=>{setSummaryGame(null);setView('games');}} onEdit={g=>{setEditingGame(g);setSummaryGame(null);setView('editGame');}} onAnalyse={g=>{setAnalysingGame(g);setSummaryGame(null);setView('gameDetail');}} {...props}/>}
+              /* GameSummary is now an overlay — see below */
               {view==='gameCompare'&& comparisonConfig && <GameComparison config={comparisonConfig} allGames={games} categories={categories} onBack={()=>{setComparisonConfig(null);setView('games');}} {...props}/>}
 
             </div>
             {showNav && <BottomNav view={view} setView={setView}/>}
+            {/* GameSummary overlay — renders on top of any view */}
+            {summaryGame&&(
+              <div style={{position:'absolute',top:0,left:0,right:0,bottom:0,zIndex:50,background:G.bg,display:'flex',flexDirection:'column'}}>
+                <GameSummary
+                  game={summaryGame}
+                  categories={categories}
+                  onBack={()=>setSummaryGame(null)}
+                  onEdit={g=>{setSummaryGame(null);setEditingGame(g);setView('editGame');}}
+                  onAnalyse={g=>{setSummaryGame(null);setAnalysingGame(g);setView('gameDetail');}}
+                  {...props}/>
+              </div>
+            )}
           </>
         )}
       </div>
