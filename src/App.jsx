@@ -1786,7 +1786,7 @@ function GameDetail({game, categories, onBack, lang, setLang}){
     const vals  = segments.map(seg=>getVal(m.id,seg));
     const total = game.metrics?.[m.id]||0;
     return {m,mName,vals,total};
-  }).filter(d=>d.total>0||d.vals.some(v=>v>0));
+  });
 
   const barMax = Math.max(...mData.flatMap(d=>d.vals), 1);
 
@@ -1875,52 +1875,51 @@ function GameDetail({game, categories, onBack, lang, setLang}){
         </div>
 
         {/* ── NO STATS MESSAGE ── */}
-        {mData.length===0&&(
-          <div style={{...card(),textAlign:'center',padding:'32px',color:G.muted}}>{t('no_stats')}</div>
+        {mData.every(d=>d.total===0)&&(
+          <div style={{...card(),textAlign:'center',padding:'20px',color:G.muted,fontSize:13}}>{t('no_stats')}</div>
         )}
 
-        {/* ── CATEGORY PICKER ── */}
-        {mData.length>0&&(
-          <>
-            <div style={{display:'flex',overflowX:'auto',gap:6,marginBottom:12,paddingBottom:4,scrollbarWidth:'none'}}>
-              {allCats.map(c=>{
-                const cn=c.custom?c.name:t(c.nameKey);
-                const active=cat?.id===c.id;
-                return(<button key={c.id} onClick={()=>setCatId(c.id)}
-                  style={{padding:'5px 12px',border:`2px solid ${active?c.color:G.border}`,borderRadius:20,
-                    background:active?c.color:G.card,color:active?'white':G.sub,
-                    fontWeight:700,fontSize:13,cursor:'pointer',whiteSpace:'nowrap',fontFamily:'inherit'}}>{cn}</button>);
-              })}
+        {/* ── CATEGORY PICKER — always visible ── */}
+        <>
+          <div style={{display:'flex',overflowX:'auto',gap:6,marginBottom:12,paddingBottom:4,scrollbarWidth:'none'}}>
+            {allCats.map(c=>{
+              const cn=c.custom?c.name:t(c.nameKey);
+              const active=cat?.id===c.id;
+              return(<button key={c.id} onClick={()=>setCatId(c.id)}
+                style={{padding:'5px 12px',border:`2px solid ${active?c.color:G.border}`,borderRadius:20,
+                  background:active?c.color:G.card,color:active?'white':G.sub,
+                  fontWeight:700,fontSize:13,cursor:'pointer',whiteSpace:'nowrap',fontFamily:'inherit'}}>{cn}</button>);
+            })}
+          </div>
+
+          {/* ── MAIN COMPARISON TABLE ── */}
+          <div style={{...card(),marginBottom:12,overflow:'hidden'}}>
+            {/* Header row with segment names */}
+            <div style={{display:'grid',gridTemplateColumns:`1fr repeat(${segments.length},1fr)`,gap:4,marginBottom:12,padding:'8px 0 0'}}>
+              <div/>
+              {segments.map((seg,i)=>(
+                <div key={i} style={{textAlign:'center'}}>
+                  <div style={{fontSize:12,fontWeight:900,color:seg.color}}>{seg.label}</div>
+                  <div style={{fontSize:10,color:G.muted}}>{seg.from}–{seg.to}′</div>
+                </div>
+              ))}
             </div>
 
-            {/* ── MAIN COMPARISON TABLE ── */}
-            <div style={{...card(),marginBottom:12,overflow:'hidden'}}>
-              {/* Header row with segment names */}
-              <div style={{display:'grid',gridTemplateColumns:`1fr repeat(${segments.length},1fr)`,gap:4,marginBottom:12,padding:'8px 0 0'}}>
-                <div/>
-                {segments.map((seg,i)=>(
-                  <div key={i} style={{textAlign:'center'}}>
-                    <div style={{fontSize:12,fontWeight:900,color:seg.color}}>{seg.label}</div>
-                    <div style={{fontSize:10,color:G.muted}}>{seg.from}–{seg.to}′</div>
+            {/* Metric rows */}
+            {mData.map(({m,mName,vals,total},ri)=>{
+              const rowMax = Math.max(...vals,1);
+              const winner = vals.indexOf(Math.max(...vals));
+              return(
+                <div key={m.id} style={{
+                  borderTop:`1px solid ${G.border}`,
+                  padding:'10px 0',
+                  background:ri%2===0?'transparent':G.grayL+'44',
+                }}>
+                  {/* Metric name + total */}
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:8,padding:'0 4px'}}>
+                    <span style={{fontSize:13,fontWeight:700,color:G.text}}>{mName}</span>
+                    <span style={{fontSize:11,color:G.muted}}>Total: {total}</span>
                   </div>
-                ))}
-              </div>
-
-              {/* Metric rows */}
-              {mData.map(({m,mName,vals,total},ri)=>{
-                const rowMax = Math.max(...vals,1);
-                const winner = vals.indexOf(Math.max(...vals));
-                return(
-                  <div key={m.id} style={{
-                    borderTop:`1px solid ${G.border}`,
-                    padding:'10px 0',
-                    background:ri%2===0?'transparent':G.grayL+'44',
-                  }}>
-                    {/* Metric name + total */}
-                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:8,padding:'0 4px'}}>
-                      <span style={{fontSize:13,fontWeight:700,color:G.text}}>{mName}</span>
-                      <span style={{fontSize:11,color:G.muted}}>Total: {total}</span>
-                    </div>
                     {/* Values grid */}
                     <div style={{display:'grid',gridTemplateColumns:`repeat(${segments.length},1fr)`,gap:6}}>
                       {segments.map((seg,i)=>{
@@ -2017,8 +2016,7 @@ function GameDetail({game, categories, onBack, lang, setLang}){
                 ℹ️ Values estimated proportionally — record new games for exact per-minute data
               </div>
             )}
-          </>
-        )}
+        </>
 
       </div>
     </div>
