@@ -804,9 +804,9 @@ function GameCard({game,categories,onDelete,onEdit,onAnalyse,onSummary}){
         <div style={{display:'flex',alignItems:'center',gap:8}}>
           {pos&&<span style={{background:G.orange,color:'white',borderRadius:6,padding:'2px 7px',fontSize:11,fontWeight:700}}>#{pos.num} {pos.code}</span>}
           <span style={{fontSize:12,color:G.sub,display:'flex',alignItems:'center',gap:2}}><Timer size={12}/>{game.minutesPlayed}m</span>
-          {onAnalyse&&<button onClick={()=>onAnalyse(game)} title="Analyse" style={{background:'none',border:'none',cursor:'pointer',padding:2}}><BarChart2 size={13} color={G.green}/></button>}
-          {onEdit&&<button onClick={()=>onEdit(game.id)} style={{background:'none',border:'none',cursor:'pointer',padding:2}}><Pencil size={13} color={G.blueL}/></button>}
-          {onDelete&&<button onClick={()=>onDelete(game.id)} style={{background:'none',border:'none',cursor:'pointer',padding:2}}><Trash2 size={13} color={G.muted}/></button>}
+          {onAnalyse&&<button onClick={e=>{e.stopPropagation();onAnalyse(game);}} title="Analyse" style={{background:'none',border:'none',cursor:'pointer',padding:2}}><BarChart2 size={13} color={G.green}/></button>}
+          {onEdit&&<button onClick={e=>{e.stopPropagation();onEdit(game);}} style={{background:'none',border:'none',cursor:'pointer',padding:2}}><Pencil size={13} color={G.blueL}/></button>}
+          {onDelete&&<button onClick={e=>{e.stopPropagation();onDelete(game.id);}} style={{background:'none',border:'none',cursor:'pointer',padding:2}}><Trash2 size={13} color={G.muted}/></button>}
         </div>
       </div>
       <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
