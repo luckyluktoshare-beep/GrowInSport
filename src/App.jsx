@@ -358,7 +358,7 @@ const TR = {
   targets_tab:      {PL:'Cele',              EN:'Targets',          DE:'Ziele',             FR:'Objectifs',       IT:'Obiettivi',         ES:'Objetivos'         },
   targets_title:    {PL:'Zaplanuj cele',     EN:'Set game targets', DE:'Ziele festlegen',   FR:'Fixer des objectifs',IT:'Imposta obiettivi',ES:'Establecer objetivos'},
   targets_subtitle: {PL:'Opcjonalnie – ustaw ile chcesz osiągnąć', EN:'Optional – set what you want to achieve', DE:'Optional – Ziele setzen', FR:'Optionnel – définir vos objectifs', IT:'Opzionale – imposta i tuoi obiettivi', ES:'Opcional – establece tus objetivos'},
-  target_planned:   {PL:'Plan',              EN:'Target',           DE:'Ziel',              FR:'Objectif',        IT:'Obiettivo',         ES:'Objetivo'          },
+  target_planned:   {PL:'Plan',              EN:'Plan',             DE:'Plan',              FR:'Objectif',        IT:'Piano',             ES:'Plan'              },
   target_actual:    {PL:'Wynik',             EN:'Result',           DE:'Ergebnis',          FR:'Résultat',        IT:'Risultato',         ES:'Resultado'         },
   target_hit:       {PL:'Cel osiągnięty ✓',  EN:'Target hit ✓',     DE:'Ziel erreicht ✓',   FR:'Objectif atteint ✓',IT:'Obiettivo raggiunto ✓',ES:'Objetivo logrado ✓'},
   target_missed:    {PL:'Cel nieosignięty ✗',EN:'Target missed ✗',  DE:'Ziel verfehlt ✗',   FR:'Objectif manqué ✗',IT:'Obiettivo mancato ✗',ES:'Objetivo fallido ✗'},
@@ -1357,7 +1357,7 @@ function ActiveGame({setup,categories,onEnd}){
                     <div key={m.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",borderBottom:`1px solid ${G.border}`}}>
                       <span style={{fontSize:13,color:G.text}}>{nm}</span>
                       <div style={{display:'flex',alignItems:'center',gap:8}}>
-                        {target!=null&&<span style={{fontSize:11,color:G.sub}}>target {target}</span>}
+                        {target!=null&&<span style={{fontSize:11,color:G.sub}}>{t('target_planned')}: {target}</span>}
                         <span style={{fontSize:14,fontWeight:700,color:val>0?(target!=null?(hit?G.green:G.red):cat.color):G.muted}}>{val}</span>
                         {target!=null&&<span>{hit?'✓':'✗'}</span>}
                       </div>
@@ -1521,7 +1521,7 @@ function ActiveGame({setup,categories,onEnd}){
           return(
             <div key={m.id} style={{background:G.card,borderRadius:16,border:`2px solid ${count>0?currentCat.color:G.border}`,padding:"12px 10px",display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
               <div style={{fontSize:12,fontWeight:600,color:G.sub,textAlign:"center",lineHeight:1.3}}>{mName}</div>
-              {target!=null&&<div style={{fontSize:10,color:hit?G.green:G.muted,fontWeight:700}}>{totalCount}/{target} {hit?'✓':''}</div>}
+              {target!=null&&<div style={{fontSize:10,color:hit?G.green:G.muted,fontWeight:700}}>{t('target_planned')}: {target} ({totalCount}) {hit?'✓':''}</div>}
               <div style={{fontSize:48,fontWeight:900,lineHeight:1,color:count>0?currentCat.color:G.text}}>{count}</div>
               <div style={{display:"flex",gap:6,width:"100%"}}>
                 <button onClick={()=>dec(m.id)} style={{flex:1,padding:"9px 0",background:G.grayL,border:"none",borderRadius:8,cursor:"pointer",fontWeight:700,fontSize:20,color:G.sub,fontFamily:"inherit"}}>−</button>
@@ -1672,7 +1672,7 @@ function GameSummary({game, categories, onBack, onAnalyse, onEdit, lang, setLang
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:4}}>
                     <span style={{fontSize:13,color:G.text}}>{mName}</span>
                     <div style={{display:'flex',alignItems:'center',gap:8}}>
-                      <span style={{fontSize:11,color:G.sub}}>target {tgt}</span>
+                      <span style={{fontSize:11,color:G.sub}}>{t('target_planned')}: {tgt}</span>
                       <span style={{fontSize:16,fontWeight:900,color:hit?G.green:G.red}}>{actual}</span>
                       <span style={{fontSize:16}}>{hit?'✓':'✗'}</span>
                     </div>
