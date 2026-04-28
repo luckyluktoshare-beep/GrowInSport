@@ -1114,61 +1114,136 @@ function NewGameSetup({categories,onStart,onBack,lang,setLang}){
 
 function ActiveGame({setup,categories,onEnd}){
   const t=useT();
-  const periods      = setup.periods||1;
-  const perPeriodMins= periods>1 ? Math.round(setup.totalMins/periods) : setup.totalMins;
+  const periods       = setup.periods||1;
+  const perPeriodMins = periods>1 ? Math.round(setup.totalMins/periods) : setup.totalMins;
 
+  // ── State ────────────────────────────────────────────────────────
   const [metrics,       setMetrics]      = useState({});
   const [periodMetrics, setPeriodMetrics]= useState([{}]);
   const [events,        setEvents]       = useState([]);
   const [activeCat,     setActiveCat]    = useState(null);
-  const [elapsed,       setElapsed]      = useState(0);
+
+  // Timer state: 'idle'|'running'|'paused'|'period_break'|'ended'
+  const [timerState,    setTimerState]   = useState('idle');
+  const [elapsed,       setElapsed]      = useState(0);   // total ms running across all periods
+  const [periodElapsedMs,setPeriodElapsedMs]=useState(0); // ms within current period only
+
   const [currentPeriod, setCurrentPeriod]= useState(1);
-  const [periodStarts,  setPeriodStarts] = useState([0]);
-  // Period log: records start/end wall-clock and ms for each period
-  const [periodLog,     setPeriodLog]    = useState([{period:1, startMs:0, startWall:new Date().toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'})}]);
+  const [periodStarts,  setPeriodStarts] = useState([]);   // wall ms when each period started
+  const [periodLog,     setPeriodLog]    = useState([]);
   const [gameStartWall] = useState(()=>new Date().toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit',second:'2-digit'}));
+  const [gameEndWall,   setGameEndWall]  = useState(null);
+
   const [onPitch,       setOnPitch]      = useState(true);
-  const [subs,          setSubs]         = useState([{elapsedMs:0,type:'on',period:1}]);
+  const [subs,          setSubs]         = useState([]);
   const [showPosPick,   setShowPosPick]  = useState(false);
   const [position,      setPosition]     = useState(setup.position||9);
   const [endScreen,     setEndScreen]    = useState(false);
   const [overrideMins,  setOverrideMins] = useState(null);
-  const [gameEndWall,   setGameEndWall]  = useState(null);
 
-  const startRef=useRef(Date.now()), accRef=useRef(0), timerRef=useRef(null);
+  // Timer refs
+  const timerRef        = useRef(null);
+  const periodStartRef  = useRef(null);   // Date.now() when current period timer last started
+  const periodAccRef    = useRef(0);      // ms accumulated in current period before last pause
+  const totalAccRef     = useRef(0);      // ms accumulated in all previous periods
+
   const activeCats=categories.filter(c=>c.measures.some(m=>m.active));
   useEffect(()=>{ if(!activeCat&&activeCats.length) setActiveCat(activeCats[0].id); },[]);
-  useEffect(()=>{
-    startRef.current=Date.now();
-    timerRef.current=setInterval(()=>setElapsed(accRef.current+(Date.now()-startRef.current)),500);
-    return()=>clearInterval(timerRef.current);
-  },[]);
 
-  const nowMs=()=>accRef.current+(Date.now()-startRef.current);
-  const wallNow=()=>new Date().toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  // Clean up timer on unmount
+  useEffect(()=>()=>{ if(timerRef.current) clearInterval(timerRef.current); },[]);
 
-  const periodStartMs = periodStarts[currentPeriod-1]||0;
-  const periodElapsed = Math.max(0, elapsed-periodStartMs);
-  const isLastPeriod  = currentPeriod>=periods;
-  const pName         = getPeriodName(periods,currentPeriod,t);
-  const elapsedMins   = Math.round(elapsed/60000);
-  const minsPlayed    = overrideMins!==null ? overrideMins : elapsedMins;
-  const currentCat    = activeCats.find(c=>c.id===activeCat);
-  const total         = Object.values(metrics).reduce((s,v)=>s+v,0);
-  const typeDef       = gameTypeDef(setup.type);
-  const pos           = posOf(position);
-
-  const pitchMins=()=>{
-    let tot=0,lastOn=0;
-    for(const s of subs){
-      if(s.type==='off') tot+=s.elapsedMs-lastOn;
-      if(s.type==='on')  lastOn=s.elapsedMs;
-    }
-    if(onPitch) tot+=nowMs()-lastOn;
-    return Math.round(tot/60000);
+  // ── Timer control ─────────────────────────────────────────────────
+  const startTimer=()=>{
+    periodStartRef.current=Date.now();
+    timerRef.current=setInterval(()=>{
+      const periodMs=periodAccRef.current+(Date.now()-periodStartRef.current);
+      setPeriodElapsedMs(periodMs);
+      setElapsed(totalAccRef.current+periodMs);
+    },200);
   };
 
+  const pauseTimer=()=>{
+    clearInterval(timerRef.current);
+    periodAccRef.current+=(Date.now()-periodStartRef.current);
+  };
+
+  const nowMs=()=>totalAccRef.current+periodAccRef.current+(timerState==='running'?Date.now()-periodStartRef.current:0);
+  const wallNow=()=>new Date().toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+
+  // ── Actions ───────────────────────────────────────────────────────
+  const handleStart=()=>{
+    const wall=wallNow();
+    setPeriodLog(pl=>[...pl,{period:currentPeriod,startWall:wall}]);
+    setSubs(s=>[...s,{elapsedMs:0,type:'on',period:currentPeriod}]);
+    setTimerState('running');
+    startTimer();
+  };
+
+  const handlePause=()=>{
+    pauseTimer();
+    setTimerState('paused');
+    const ms=nowMs();
+    setSubs(s=>[...s,{elapsedMs:ms,type:'off',period:currentPeriod}]);
+  };
+
+  const handleResume=()=>{
+    setTimerState('running');
+    startTimer();
+    const ms=nowMs();
+    setSubs(s=>[...s,{elapsedMs:ms,type:'on',period:currentPeriod}]);
+  };
+
+  const handleEndPeriod=()=>{
+    if(timerState==='running') pauseTimer();
+    const ms=nowMs();
+    const wall=wallNow();
+    const periodMs=periodAccRef.current+(timerState==='running'?Date.now()-periodStartRef.current:0);
+    // Close current period in log
+    setPeriodLog(pl=>{
+      const up=[...pl];
+      if(up.length>0) up[up.length-1]={...up[up.length-1],endWall:wall,durationMins:Math.round(periodMs/60000)};
+      return up;
+    });
+    // Accumulate period into total
+    totalAccRef.current+=periodMs;
+    periodAccRef.current=0;
+    setPeriodElapsedMs(0);
+    setCurrentPeriod(p=>p+1);
+    setPeriodMetrics(pm=>[...pm,{}]);
+    setSubs(s=>[...s,{elapsedMs:ms,type:'period',period:currentPeriod+1}]);
+    setTimerState('period_break');
+  };
+
+  const handleStartNextPeriod=()=>{
+    const wall=wallNow();
+    setPeriodLog(pl=>[...pl,{period:currentPeriod,startWall:wall}]);
+    setTimerState('running');
+    startTimer();
+  };
+
+  const handleEndGame=()=>{
+    if(timerState==='running') pauseTimer();
+    const ms=nowMs();
+    const wall=wallNow();
+    const periodMs=periodAccRef.current;
+    // Close final period if not already closed
+    setPeriodLog(pl=>{
+      const up=[...pl];
+      if(up.length>0&&!up[up.length-1].endWall){
+        up[up.length-1]={...up[up.length-1],endWall:wall,durationMins:Math.round(periodMs/60000)};
+      }
+      return up;
+    });
+    totalAccRef.current+=periodMs;
+    setGameEndWall(wall);
+    setTimerState('ended');
+    setEndScreen(true);
+  };
+
+  // ── Metric tracking ───────────────────────────────────────────────
   const inc=id=>{
+    if(timerState!=='running') return; // only track when running
     const ms=nowMs();
     setEvents(es=>[...es,{id:uid(),metricId:id,elapsedMs:ms,period:currentPeriod,onPitch}]);
     setPeriodMetrics(pm=>{const up=[...pm];const pi=currentPeriod-1;up[pi]={...up[pi],[id]:(up[pi][id]||0)+1};return up;});
@@ -1183,47 +1258,27 @@ function ActiveGame({setup,categories,onEnd}){
   const sumPeriodMetrics=pm=>{const total={};for(const p of pm)for(const[k,v]of Object.entries(p))total[k]=(total[k]||0)+v;return total;};
 
   const togglePitch=()=>{
+    if(timerState!=='running') return;
     const ms=nowMs();
     setSubs(s=>[...s,{elapsedMs:ms,type:onPitch?'off':'on',period:currentPeriod}]);
     setOnPitch(v=>!v);
   };
 
-  const advancePeriod=()=>{
-    if(isLastPeriod) return;
-    const ms=nowMs();
-    const wall=wallNow();
-    // Close current period in log
-    setPeriodLog(pl=>{
-      const up=[...pl];
-      up[currentPeriod-1]={...up[currentPeriod-1],endMs:ms,endWall:wall,durationMins:Math.round((ms-(periodStarts[currentPeriod-1]||0))/60000)};
-      // Open next period
-      return [...up,{period:currentPeriod+1,startMs:ms,startWall:wall}];
-    });
-    setPeriodStarts(ps=>[...ps,ms]);
-    setCurrentPeriod(p=>p+1);
-    setPeriodMetrics(pm=>[...pm,{}]);
-    setSubs(s=>[...s,{elapsedMs:ms,type:'period',period:currentPeriod+1}]);
-  };
-
-  const handleEndGame=()=>{
-    const ms=nowMs();
-    const wall=wallNow();
-    setGameEndWall(wall);
-    // Close final period
-    setPeriodLog(pl=>{
-      const up=[...pl];
-      up[currentPeriod-1]={...up[currentPeriod-1],endMs:ms,endWall:wall,durationMins:Math.round((ms-(periodStarts[currentPeriod-1]||0))/60000)};
-      return up;
-    });
-    setEndScreen(true);
-  };
+  // Derived
+  const elapsedMins   = Math.round((totalAccRef.current+periodAccRef.current+(timerState==='running'?Date.now()-periodStartRef.current:0))/60000);
+  const minsPlayed    = overrideMins!==null ? overrideMins : elapsedMins;
+  const currentCat    = activeCats.find(c=>c.id===activeCat);
+  const total         = Object.values(metrics).reduce((s,v)=>s+v,0);
+  const typeDef       = gameTypeDef(setup.type);
+  const pos           = posOf(position);
+  const isLastPeriod  = currentPeriod>=periods;
+  const pName         = getPeriodName(periods,currentPeriod,t);
 
   const buildGame=()=>({
     id:Date.now().toString(), date:setup.date, name:setup.name, type:setup.type,
     totalMinutes:setup.totalMins, minutesPlayed:minsPlayed, position,
     periods, metrics:sumPeriodMetrics(periodMetrics), periodMetrics, events, subs,
-    targets: setup.targets||{},
-    startTime: gameStartWall, endTime: gameEndWall||wallNow(), periodLog,
+    targets:setup.targets||{}, startTime:gameStartWall, endTime:gameEndWall||wallNow(), periodLog,
   });
 
   // ── END SCREEN ────────────────────────────────────────────────────
@@ -1232,8 +1287,8 @@ function ActiveGame({setup,categories,onEnd}){
       <AppHeader title={t("end_game_title")} subtitle={setup.name||undefined} onBack={()=>setEndScreen(false)}/>
       <div style={{flex:1,overflowY:"auto",padding:"16px 16px 90px"}}>
 
-        {/* Time info */}
-        <div style={{...card(),marginBottom:12,display:'flex',gap:0,overflow:'hidden',padding:0}}>
+        {/* Start / End time */}
+        <div style={{...card(),marginBottom:12,display:'flex',padding:0,overflow:'hidden'}}>
           {[{label:t('game_start_time'),val:gameStartWall},{label:t('game_end_time'),val:gameEndWall||wallNow()}].map((x,i)=>(
             <div key={i} style={{flex:1,padding:'14px',textAlign:'center',borderRight:i===0?`1px solid ${G.border}`:'none'}}>
               <div style={{fontSize:11,fontWeight:700,color:G.sub,marginBottom:4}}>{x.label}</div>
@@ -1250,23 +1305,23 @@ function ActiveGame({setup,categories,onEnd}){
             <span style={{fontSize:36,fontWeight:900,color:G.blue,flex:1,textAlign:"center"}}>{minsPlayed}</span>
             <button onClick={()=>setOverrideMins(minsPlayed+1)} style={{...btnSt(G.grayL,G.sub),padding:"10px 20px"}}><Plus size={16}/></button>
           </div>
-          <div style={{fontSize:11,color:G.muted,textAlign:"center",marginTop:4}}>
-            {t("timer_label",{m:elapsedMins})} · {t("on_pitch_mins",{m:pitchMins()})}
-          </div>
+          <div style={{fontSize:11,color:G.muted,textAlign:"center",marginTop:4}}>{t("timer_label",{m:elapsedMins})}</div>
         </div>
 
         {/* Period log */}
-        {periods>1&&periodLog.length>0&&(
+        {periodLog.length>0&&(
           <div style={{...card(),marginBottom:12}}>
             <div style={{fontSize:12,fontWeight:700,color:G.sub,textTransform:"uppercase",letterSpacing:.5,marginBottom:8}}>{t('period_dur')}</div>
             {periodLog.map((pl,i)=>{
-              const color=['#1565C0','#E64A19','#2D8B2D','#534AB7'][i%4];
+              const col=['#1565C0','#E64A19','#2D8B2D','#534AB7'][i%4];
               return(
                 <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'7px 0',borderTop:i>0?`1px solid ${G.border}`:'none'}}>
-                  <span style={{fontSize:13,fontWeight:700,color}}>{t('period_of',{n:pl.period,name:getPeriodName(periods,pl.period,t)})}</span>
+                  <span style={{fontSize:13,fontWeight:700,color:col}}>
+                    {periods>1?t('period_of',{n:pl.period,name:getPeriodName(periods,pl.period,t)}):'Game'}
+                  </span>
                   <span style={{fontSize:12,color:G.sub}}>
                     {pl.startWall} → {pl.endWall||'—'}
-                    {pl.durationMins!=null&&<span style={{color,fontWeight:700,marginLeft:6}}>{pl.durationMins} min</span>}
+                    {pl.durationMins!=null&&<strong style={{color:col,marginLeft:5}}>{pl.durationMins} min</strong>}
                   </span>
                 </div>
               );
@@ -1283,28 +1338,26 @@ function ActiveGame({setup,categories,onEnd}){
           </div>
         </div>
 
-        {/* Stats total */}
+        {/* Stats by category — ALL categories, 0 shown too */}
         <div style={{...card(),marginBottom:12}}>
           <div style={{fontSize:12,fontWeight:700,color:G.sub,textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>{t("stats_total",{n:total})}</div>
-          {categories.filter(c=>c.measures.some(m=>m.active&&(metrics[m.id]||0)>0)).map(cat=>{
+          {categories.filter(c=>c.measures.some(m=>m.active)).map(cat=>{
             const catName=cat.custom?cat.name:t(cat.nameKey);
             return(
-              <div key={cat.id} style={{marginBottom:10}}>
+              <div key={cat.id} style={{marginBottom:12}}>
                 <div style={{fontSize:12,fontWeight:700,color:cat.color,marginBottom:5}}>{catName}</div>
-                {cat.measures.filter(m=>m.active&&(metrics[m.id]||0)>0).map(m=>{
+                {cat.measures.filter(m=>m.active).map(m=>{
                   const nm=m.custom?m.name:t(m.nameKey);
-                  const target=setup.targets?.[m.id];
                   const val=metrics[m.id]||0;
+                  const target=setup.targets?.[m.id];
                   const hit=target!=null&&val>=target;
                   return(
                     <div key={m.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",borderBottom:`1px solid ${G.border}`}}>
                       <span style={{fontSize:13,color:G.text}}>{nm}</span>
                       <div style={{display:'flex',alignItems:'center',gap:8}}>
-                        {target!=null&&(
-                          <span style={{fontSize:11,color:G.sub}}>target: {target}</span>
-                        )}
-                        <span style={{fontSize:14,fontWeight:700,color:target!=null?(hit?G.green:G.red):cat.color}}>{val}</span>
-                        {target!=null&&<span style={{fontSize:14}}>{hit?'✓':'✗'}</span>}
+                        {target!=null&&<span style={{fontSize:11,color:G.sub}}>target {target}</span>}
+                        <span style={{fontSize:14,fontWeight:700,color:val>0?(target!=null?(hit?G.green:G.red):cat.color):G.muted}}>{val}</span>
+                        {target!=null&&<span>{hit?'✓':'✗'}</span>}
                       </div>
                     </div>
                   );
@@ -1312,16 +1365,17 @@ function ActiveGame({setup,categories,onEnd}){
               </div>
             );
           })}
-          {total===0&&<div style={{color:G.muted,fontSize:13,textAlign:"center",padding:"8px 0"}}>{t("no_stats")}</div>}
         </div>
 
         {/* Targets summary */}
         {setup.targets&&Object.keys(setup.targets).length>0&&(()=>{
-          const allHit=Object.entries(setup.targets).every(([id,tgt])=>(metrics[id]||0)>=tgt);
+          const entries=Object.entries(setup.targets);
+          const hitCount=entries.filter(([id,tgt])=>(metrics[id]||0)>=tgt).length;
+          const allHit=hitCount===entries.length;
           return(
             <div style={{...card(),marginBottom:20,background:allHit?G.greenBg:G.grayL,border:`1px solid ${allHit?G.green:G.border}`}}>
               <div style={{fontSize:14,fontWeight:700,color:allHit?G.green:G.sub,textAlign:'center'}}>
-                {allHit?t('all_targets_hit'):`${Object.entries(setup.targets).filter(([id,tgt])=>(metrics[id]||0)>=tgt).length}/${Object.keys(setup.targets).length} targets hit`}
+                {allHit?t('all_targets_hit'):`${hitCount}/${entries.length} targets hit`}
               </div>
             </div>
           );
@@ -1336,39 +1390,51 @@ function ActiveGame({setup,categories,onEnd}){
   );
 
   // ── ACTIVE TRACKING ────────────────────────────────────────────
+  const isIdle        = timerState==='idle';
+  const isRunning     = timerState==='running';
+  const isPaused      = timerState==='paused';
+  const isPeriodBreak = timerState==='period_break';
+
   return(
     <div style={{display:"flex",flexDirection:"column",height:"100vh",background:G.bg,overflow:"hidden",position:"relative"}}>
-      <div style={{background:onPitch?G.blue:"#4A4A4A",padding:"10px 14px",color:"white",flexShrink:0,transition:"background .3s"}}>
-        {/* Row 1 */}
+      {/* ── HEADER ── */}
+      <div style={{background:isPeriodBreak?"#4A5568":isRunning?G.blue:isPaused?"#BA7517":"#2D3748",padding:"10px 14px",color:"white",flexShrink:0,transition:"background .4s"}}>
+
+        {/* Row 1: logo / type / events */}
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
             <GISLogo size={26} dark/>
             <span style={pill(typeDef.color+"44","white")}>{t(typeDef.labelKey)}</span>
-            {setup.name&&<span style={{fontSize:12,opacity:.8,fontWeight:600,maxWidth:80,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{setup.name}</span>}
+            {setup.name&&<span style={{fontSize:11,opacity:.8,fontWeight:600,maxWidth:80,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{setup.name}</span>}
           </div>
           <div style={{textAlign:'right'}}>
             <div style={{fontSize:9,opacity:.6}}>🕐 {gameStartWall}</div>
-            <div style={{fontSize:10,opacity:.7}}>{Object.values(periodMetrics[currentPeriod-1]||{}).reduce((s,v)=>s+v,0)} {t("events")}</div>
+            <div style={{fontSize:10,opacity:.7}}>{total} {t("events")}</div>
           </div>
         </div>
 
         {/* Period dots */}
         {periods>1&&(
-          <div style={{display:"flex",gap:4,marginBottom:4}}>
+          <div style={{display:"flex",gap:4,marginBottom:6}}>
             {Array.from({length:periods},(_,i)=>(
-              <div key={i} style={{flex:1,height:3,borderRadius:2,background:i+1<currentPeriod?"rgba(255,255,255,.9)":i+1===currentPeriod?"white":"rgba(255,255,255,.25)"}}/>
+              <div key={i} style={{flex:1,height:4,borderRadius:2,
+                background:i+1<currentPeriod?"rgba(255,255,255,.9)":i+1===currentPeriod?"white":"rgba(255,255,255,.2)"}}/>
             ))}
           </div>
         )}
 
-        {/* Timer row */}
+        {/* Period name + timer */}
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
           <div style={{flex:1}}>
-            <div style={{display:"flex",alignItems:"baseline",gap:6}}>
-              <span style={{fontSize:38,fontWeight:900,letterSpacing:1,lineHeight:1}}>{fmtTimer(periodElapsed)}</span>
-              {periods>1&&<span style={{fontSize:11,opacity:.65}}>{t("period_of",{n:currentPeriod,name:pName})}</span>}
+            <div style={{fontSize:11,opacity:.65,marginBottom:2}}>
+              {periods>1?t('period_of',{n:currentPeriod,name:pName}):'Game'} 
+              {isPaused&&<span style={{marginLeft:6,background:'rgba(255,255,255,.2)',borderRadius:10,padding:'1px 6px',fontSize:10}}>⏸ Paused</span>}
+              {isPeriodBreak&&<span style={{marginLeft:6,background:'rgba(255,255,255,.2)',borderRadius:10,padding:'1px 6px',fontSize:10}}>⏱ Break</span>}
             </div>
-            <div style={{fontSize:10,opacity:.55}}>total {fmtTimer(elapsed)} / {setup.totalMins} min</div>
+            <div style={{fontSize:38,fontWeight:900,letterSpacing:1,lineHeight:1,opacity:isRunning?1:0.6}}>
+              {fmtTimer(periodElapsedMs)}
+            </div>
+            {periods>1&&<div style={{fontSize:10,opacity:.5,marginTop:1}}>total {fmtTimer(elapsed)}</div>}
           </div>
           <button onClick={()=>setShowPosPick(true)} style={{background:"rgba(255,255,255,.15)",border:"2px solid rgba(255,255,255,.3)",borderRadius:12,padding:"6px 10px",cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:6}}>
             <span style={{background:G.orange,color:"white",borderRadius:5,width:24,height:24,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:900}}>{pos.num}</span>
@@ -1376,20 +1442,58 @@ function ActiveGame({setup,categories,onEnd}){
           </button>
         </div>
 
-        {/* Controls */}
-        <div style={{display:"flex",gap:6}}>
-          <button onClick={togglePitch} style={{flex:1,padding:"8px 6px",background:onPitch?"rgba(43,139,43,.35)":"rgba(230,74,25,.35)",border:`2px solid ${onPitch?"rgba(43,139,43,.7)":"rgba(230,74,25,.7)"}`,borderRadius:10,color:"white",cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:5,fontWeight:700,fontSize:13}}>
-            {onPitch?<>🟢 {t("sub_off")}</>:<>🔴 {t("sub_on")}</>}
+        {/* ── CONTROL BUTTONS — change based on state ── */}
+        {isIdle&&(
+          <button onClick={handleStart} style={{width:'100%',padding:"12px",background:"rgba(45,139,45,.6)",border:"2px solid rgba(45,139,45,.9)",borderRadius:12,color:"white",cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:8,fontWeight:900,fontSize:16}}>
+            <Play size={20} fill="white"/>
+            {periods>1?`Start ${pName} ${currentPeriod}`:'Start tracking'}
           </button>
-          {periods>1&&!isLastPeriod&&(
-            <button onClick={advancePeriod} style={{flex:1,padding:"8px 6px",background:"rgba(249,168,37,.3)",border:"2px solid rgba(249,168,37,.7)",borderRadius:10,color:"white",cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:5,fontWeight:700,fontSize:12}}>
-              {t("next_period")}
+        )}
+
+        {isPeriodBreak&&(
+          <button onClick={handleStartNextPeriod} style={{width:'100%',padding:"12px",background:"rgba(45,139,45,.6)",border:"2px solid rgba(45,139,45,.9)",borderRadius:12,color:"white",cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:8,fontWeight:900,fontSize:16}}>
+            <Play size={20} fill="white"/>
+            Start {pName} {currentPeriod}
+          </button>
+        )}
+
+        {(isRunning||isPaused)&&(
+          <div style={{display:"flex",gap:6}}>
+            {/* Sub off/on */}
+            <button onClick={togglePitch} disabled={!isRunning} style={{flex:1,padding:"8px 6px",background:onPitch?"rgba(43,139,43,.35)":"rgba(230,74,25,.35)",border:`2px solid ${onPitch?"rgba(43,139,43,.7)":"rgba(230,74,25,.7)"}`,borderRadius:10,color:"white",cursor:isRunning?"pointer":"default",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:5,fontWeight:700,fontSize:12,opacity:isRunning?1:0.5}}>
+              {onPitch?<>🟢 {t("sub_off")}</>:<>🔴 {t("sub_on")}</>}
             </button>
-          )}
-          <button onClick={handleEndGame} style={{flex:1,padding:"8px 6px",background:"rgba(198,40,40,.35)",border:"2px solid rgba(198,40,40,.7)",borderRadius:10,color:"white",cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:5,fontWeight:700,fontSize:13}}>
-            <StopCircle size={14}/> {t("end_game")}
+
+            {/* Pause / Resume */}
+            {isRunning?(
+              <button onClick={handlePause} style={{flex:1,padding:"8px 6px",background:"rgba(186,117,23,.4)",border:"2px solid rgba(186,117,23,.8)",borderRadius:10,color:"white",cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:5,fontWeight:700,fontSize:12}}>
+                ⏸ Pause
+              </button>
+            ):(
+              <button onClick={handleResume} style={{flex:1,padding:"8px 6px",background:"rgba(45,139,45,.4)",border:"2px solid rgba(45,139,45,.8)",borderRadius:10,color:"white",cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:5,fontWeight:700,fontSize:12}}>
+                ▶ Resume
+              </button>
+            )}
+
+            {/* End period / End game */}
+            {periods>1&&!isLastPeriod?(
+              <button onClick={handleEndPeriod} style={{flex:1,padding:"8px 6px",background:"rgba(249,168,37,.3)",border:"2px solid rgba(249,168,37,.7)",borderRadius:10,color:"white",cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:4,fontWeight:700,fontSize:11}}>
+                ⏭ End {pName}
+              </button>
+            ):(
+              <button onClick={handleEndGame} style={{flex:1,padding:"8px 6px",background:"rgba(198,40,40,.35)",border:"2px solid rgba(198,40,40,.7)",borderRadius:10,color:"white",cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:5,fontWeight:700,fontSize:12}}>
+                <StopCircle size={14}/> {t("end_game")}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* End game always visible when on break too */}
+        {(isIdle||isPeriodBreak)&&(
+          <button onClick={handleEndGame} style={{width:'100%',marginTop:6,padding:"8px",background:"rgba(198,40,40,.25)",border:"1px solid rgba(198,40,40,.5)",borderRadius:10,color:"rgba(255,255,255,.7)",cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:5,fontWeight:600,fontSize:12}}>
+            <StopCircle size={13}/> End game
           </button>
-        </div>
+        )}
       </div>
 
       {/* Category tabs */}
@@ -1399,8 +1503,13 @@ function ActiveGame({setup,categories,onEnd}){
         );})}
       </div>
 
-      {/* Counter grid */}
-      <div style={{flex:1,overflowY:"auto",padding:"10px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,alignContent:"start",opacity:onPitch?1:0.6}}>
+      {/* Counter grid — dim and disable when not running */}
+      <div style={{flex:1,overflowY:"auto",padding:"10px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,alignContent:"start",opacity:isRunning&&onPitch?1:0.5}}>
+        {!isRunning&&!isPaused&&(
+          <div style={{gridColumn:'1/-1',textAlign:'center',padding:'20px',color:G.muted,fontSize:13,fontWeight:600}}>
+            {isIdle?'Press Start to begin tracking':'Press Resume or Start Next Period to continue'}
+          </div>
+        )}
         {currentCat?.measures.filter(m=>m.active).map(m=>{
           const count=(periodMetrics[currentPeriod-1]||{})[m.id]||0;
           const mName=m.custom?m.name:t(m.nameKey);
@@ -1410,22 +1519,18 @@ function ActiveGame({setup,categories,onEnd}){
           return(
             <div key={m.id} style={{background:G.card,borderRadius:16,border:`2px solid ${count>0?currentCat.color:G.border}`,padding:"12px 10px",display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
               <div style={{fontSize:12,fontWeight:600,color:G.sub,textAlign:"center",lineHeight:1.3}}>{mName}</div>
-              {target!=null&&(
-                <div style={{fontSize:10,color:hit?G.green:G.muted,fontWeight:700}}>
-                  {totalCount}/{target} {hit?'✓':''}
-                </div>
-              )}
+              {target!=null&&<div style={{fontSize:10,color:hit?G.green:G.muted,fontWeight:700}}>{totalCount}/{target} {hit?'✓':''}</div>}
               <div style={{fontSize:48,fontWeight:900,lineHeight:1,color:count>0?currentCat.color:G.text}}>{count}</div>
               <div style={{display:"flex",gap:6,width:"100%"}}>
                 <button onClick={()=>dec(m.id)} style={{flex:1,padding:"9px 0",background:G.grayL,border:"none",borderRadius:8,cursor:"pointer",fontWeight:700,fontSize:20,color:G.sub,fontFamily:"inherit"}}>−</button>
-                <button onClick={()=>inc(m.id)} style={{flex:2,padding:"9px 0",background:currentCat.color,border:"none",borderRadius:8,cursor:"pointer",fontWeight:900,fontSize:20,color:"white",fontFamily:"inherit"}}>+</button>
+                <button onClick={()=>inc(m.id)} disabled={!isRunning} style={{flex:2,padding:"9px 0",background:isRunning?currentCat.color:G.muted,border:"none",borderRadius:8,cursor:isRunning?"pointer":"not-allowed",fontWeight:900,fontSize:20,color:"white",fontFamily:"inherit"}}>+</button>
               </div>
             </div>
           );
         })}
       </div>
 
-      {!onPitch&&(
+      {!onPitch&&isRunning&&(
         <div style={{position:"absolute",bottom:10,left:0,right:0,textAlign:"center",pointerEvents:"none"}}>
           <span style={{background:"rgba(0,0,0,.6)",color:"white",borderRadius:20,padding:"4px 14px",fontSize:12,fontWeight:700}}>⏸ {t("benched")}</span>
         </div>
@@ -1581,9 +1686,9 @@ function GameSummary({game, categories, onBack, onAnalyse, onEdit, lang, setLang
         )}
 
         {/* Stats by category */}
-        {categories.filter(c=>c.measures.some(m=>m.active&&(game.metrics?.[m.id]||0)>0)).map(cat=>{
+        {categories.filter(c=>c.measures.some(m=>m.active)).map(cat=>{
           const catName=cat.custom?cat.name:t(cat.nameKey);
-          const meas=cat.measures.filter(m=>m.active&&(game.metrics?.[m.id]||0)>0);
+          const meas=cat.measures.filter(m=>m.active);
           const catTotal=meas.reduce((s,m)=>s+(game.metrics?.[m.id]||0),0);
           return(
             <div key={cat.id} style={{...card(),marginBottom:10}}>
