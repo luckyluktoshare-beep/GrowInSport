@@ -350,6 +350,25 @@ const TR = {
   // Export tab
   export_tab:       {PL:'Eksport',            EN:'Export',             DE:'Export',             FR:'Export',            IT:'Export',             ES:'Exportar'          },
 
+  // Timing
+  game_start_time:  {PL:'Start',             EN:'Started',          DE:'Gestartet',        FR:'Commencé',        IT:'Iniziato',          ES:'Iniciado'          },
+  game_end_time:    {PL:'Koniec',            EN:'Ended',            DE:'Beendet',           FR:'Terminé',         IT:'Terminato',         ES:'Terminado'         },
+  period_dur:       {PL:'Czas części',       EN:'Period duration',  DE:'Abschnittsdauer',   FR:'Durée période',   IT:'Durata periodo',    ES:'Duración período'  },
+  // Targets
+  targets_tab:      {PL:'Cele',              EN:'Targets',          DE:'Ziele',             FR:'Objectifs',       IT:'Obiettivi',         ES:'Objetivos'         },
+  targets_title:    {PL:'Zaplanuj cele',     EN:'Set game targets', DE:'Ziele festlegen',   FR:'Fixer des objectifs',IT:'Imposta obiettivi',ES:'Establecer objetivos'},
+  targets_subtitle: {PL:'Opcjonalnie – ustaw ile chcesz osiągnąć', EN:'Optional – set what you want to achieve', DE:'Optional – Ziele setzen', FR:'Optionnel – définir vos objectifs', IT:'Opzionale – imposta i tuoi obiettivi', ES:'Opcional – establece tus objetivos'},
+  target_planned:   {PL:'Plan',              EN:'Target',           DE:'Ziel',              FR:'Objectif',        IT:'Obiettivo',         ES:'Objetivo'          },
+  target_actual:    {PL:'Wynik',             EN:'Result',           DE:'Ergebnis',          FR:'Résultat',        IT:'Risultato',         ES:'Resultado'         },
+  target_hit:       {PL:'Cel osiągnięty ✓',  EN:'Target hit ✓',     DE:'Ziel erreicht ✓',   FR:'Objectif atteint ✓',IT:'Obiettivo raggiunto ✓',ES:'Objetivo logrado ✓'},
+  target_missed:    {PL:'Cel nieosignięty ✗',EN:'Target missed ✗',  DE:'Ziel verfehlt ✗',   FR:'Objectif manqué ✗',IT:'Obiettivo mancato ✗',ES:'Objetivo fallido ✗'},
+  targets_none:     {PL:'Brak celów dla tego meczu', EN:'No targets set for this game', DE:'Keine Ziele für dieses Spiel', FR:'Aucun objectif pour ce match', IT:'Nessun obiettivo per questa partita', ES:'Sin objetivos para este partido'},
+  skip_targets:     {PL:'Pomiń',             EN:'Skip',             DE:'Überspringen',      FR:'Ignorer',         IT:'Salta',             ES:'Omitir'            },
+  // Summary
+  game_summary:     {PL:'Podsumowanie',      EN:'Summary',          DE:'Zusammenfassung',   FR:'Résumé',          IT:'Riepilogo',         ES:'Resumen'           },
+  targets_vs_actual:{PL:'Cele vs. Wyniki',   EN:'Targets vs. Results',DE:'Ziele vs. Ergebnis',FR:'Objectifs vs. Résultats',IT:'Obiettivi vs. Risultati',ES:'Objetivos vs. Resultados'},
+  all_targets_hit:  {PL:'Wszystkie cele osiągnięte! 🎉',EN:'All targets hit! 🎉',DE:'Alle Ziele erreicht! 🎉',FR:'Tous les objectifs atteints! 🎉',IT:'Tutti gli obiettivi raggiunti! 🎉',ES:'¡Todos los objetivos logrados! 🎉'},
+
 };
 
 // ─── Translation helper ───────────────────────────────────────────
@@ -454,6 +473,11 @@ function migrateGame(g){
     periodMetrics: g.periodMetrics || (g.periods>1 ? Array.from({length:g.periods||1},(_,i)=>i===0?{...(g.metrics||{})}:{}) : null),
     // v5+  (substitution log)
     subs:        g.subs        || [],
+    // v6+  (targets, timestamps)
+    targets:     g.targets     || {},
+    startTime:   g.startTime   || g.start_time  || null,
+    endTime:     g.endTime     || g.end_time     || null,
+    periodLog:   g.periodLog   || g.period_log   || null,
   };
 }
 function migrateUserData(data){
@@ -755,7 +779,7 @@ function useCatName(cat){ const t=useT(); return cat.custom ? cat.name : t(cat.n
 function useMeasName(m){ const t=useT(); return m.custom ? m.name : t(m.nameKey); }
 
 // ─── Game Card ────────────────────────────────────────────────────
-function GameCard({game,categories,onDelete,onEdit,onAnalyse}){
+function GameCard({game,categories,onDelete,onEdit,onAnalyse,onSummary}){
   const t=useT();
   const typeDef=gameTypeDef(game.type);
   const typeLabel=t(typeDef.labelKey);
@@ -769,7 +793,7 @@ function GameCard({game,categories,onDelete,onEdit,onAnalyse}){
       }
   highlights.sort((a,b)=>b.val-a.val);
   return(
-    <div style={{...card(),marginBottom:10}}>
+    <div onClick={onSummary?()=>onSummary(game):undefined} style={{...card(),marginBottom:10,cursor:onSummary?'pointer':'default'}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
         <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
           <span style={pill(typeDef.color+'22',typeDef.color)}>{typeLabel}</span>
@@ -794,7 +818,7 @@ function GameCard({game,categories,onDelete,onEdit,onAnalyse}){
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────
-function Dashboard({games,categories,playerName,age,onStartGame,onDonate,onFeedback,onEdit,onAnalyse,lang,setLang}){
+function Dashboard({games,categories,playerName,age,onStartGame,onDonate,onFeedback,onEdit,onAnalyse,onSummary,lang,setLang}){
   const t=useT();
   const totalMins=games.reduce((s,g)=>s+(g.minutesPlayed||0),0);
   const goalsTotal=games.reduce((s,g)=>s+(g.metrics?.goals||0),0);
@@ -826,7 +850,7 @@ function Dashboard({games,categories,playerName,age,onStartGame,onDonate,onFeedb
             </div>
           </div>
         )}
-        {recent.length>0&&(<><div style={{fontSize:15,fontWeight:700,color:G.text,marginBottom:10}}>{t('recent_games')}</div>{recent.map(g=><GameCard key={g.id} game={g} categories={categories} onEdit={onEdit} onAnalyse={onAnalyse}/>)}</>)}
+        {recent.length>0&&(<><div style={{fontSize:15,fontWeight:700,color:G.text,marginBottom:10}}>{t('recent_games')}</div>{recent.map(g=><GameCard key={g.id} game={g} categories={categories} onEdit={onEdit} onAnalyse={onAnalyse} onSummary={onSummary}/>)}</>)}
         {games.length===0&&(
           <div style={{...card(),textAlign:'center',padding:'40px 20px'}}>
             <Trophy size={44} color={G.muted} style={{marginBottom:12}}/>
@@ -846,7 +870,7 @@ function Dashboard({games,categories,playerName,age,onStartGame,onDonate,onFeedb
 
 // ─── Games List ───────────────────────────────────────────────────
 // ─── Games List ───────────────────────────────────────────────────
-function GamesList({games,categories,onStartGame,onDelete,onEdit,onAnalyse,onCompare,lang,setLang}){
+function GamesList({games,categories,onStartGame,onDelete,onEdit,onAnalyse,onCompare,onSummary,lang,setLang}){
   const t=useT();
   const [selectMode, setSelectMode] = useState(false);
   const [selected,   setSelected]   = useState(new Set());
@@ -956,17 +980,73 @@ function GamesList({games,categories,onStartGame,onDelete,onEdit,onAnalyse,onCom
 // ─── New Game Setup ───────────────────────────────────────────────
 function NewGameSetup({categories,onStart,onBack,lang,setLang}){
   const t=useT();
-  const [type,setType]=useState('friendly');
-  const [name,setName]=useState('');
-  const [totalMins,setTotalMins]=useState(60);
-  const [customMin,setCustomMin]=useState('');
-  const [date,setDate]=useState(new Date().toISOString().slice(0,10));
-  const [position,setPosition]=useState(9);
-  const [periods,setPeriods]=useState(2);
-  const [showPos,setShowPos]=useState(false);
+  const [step,      setStep]     = useState('setup'); // 'setup'|'targets'
+  const [type,      setType]     = useState('friendly');
+  const [name,      setName]     = useState('');
+  const [totalMins, setTotalMins]= useState(60);
+  const [customMin, setCustomMin]= useState('');
+  const [date,      setDate]     = useState(new Date().toISOString().slice(0,10));
+  const [position,  setPosition] = useState(9);
+  const [showPos,   setShowPos]  = useState(false);
+  const [periods,   setPeriods]  = useState(2);
+  const [targets,   setTargets]  = useState({});
+
   const effectiveMins=customMin!==''?(parseInt(customMin)||0):totalMins;
   const pos=posOf(position);
   const activeCats=categories.filter(c=>c.measures.some(m=>m.active));
+  const allActiveMeas=activeCats.flatMap(c=>c.measures.filter(m=>m.active).map(m=>({...m,catColor:c.color})));
+
+  const setTarget=(id,val)=>setTargets(ts=>val===''?Object.fromEntries(Object.entries(ts).filter(([k])=>k!==id)):{...ts,[id]:parseInt(val)||0});
+
+  if(step==='targets') return(
+    <div style={{display:'flex',flexDirection:'column',height:'100%'}}>
+      <AppHeader title={t('targets_title')} subtitle={t('targets_subtitle')} onBack={()=>setStep('setup')} lang={lang} setLang={setLang}/>
+      <div style={{flex:1,overflowY:'auto',padding:'16px 16px 90px'}}>
+        <div style={{...card(),marginBottom:16,background:G.blueBg,border:`1px solid ${G.blue}33`}}>
+          <div style={{fontSize:13,color:G.blue,lineHeight:1.7}}>
+            Set targets for today's game. After the game you'll see how you did vs your plan. Leave blank to skip any metric.
+          </div>
+        </div>
+        {activeCats.map(cat=>{
+          const catName=cat.custom?cat.name:t(cat.nameKey);
+          const meas=cat.measures.filter(m=>m.active);
+          return(
+            <div key={cat.id} style={{...card(),marginBottom:12}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+                <div style={{width:10,height:10,borderRadius:2,background:cat.color}}/>
+                <div style={{fontSize:14,fontWeight:700,color:G.text}}>{catName}</div>
+              </div>
+              {meas.map(m=>{
+                const mName=m.custom?m.name:t(m.nameKey);
+                return(
+                  <div key={m.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 0',borderTop:`1px solid ${G.border}`}}>
+                    <span style={{fontSize:13,color:G.text}}>{mName}</span>
+                    <input type="number" min={0} max={99} value={targets[m.id]??''}
+                      onChange={e=>setTarget(m.id,e.target.value)}
+                      placeholder="—"
+                      style={{width:64,padding:'6px 8px',border:`2px solid ${targets[m.id]!=null?cat.color:G.border}`,borderRadius:8,
+                        fontSize:16,fontWeight:700,textAlign:'center',fontFamily:'inherit',color:cat.color,
+                        background:targets[m.id]!=null?cat.color+'10':'white'}}/>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+        <div style={{display:'flex',gap:10,marginTop:4}}>
+          <button onClick={()=>onStart({type,name:name.trim(),totalMins:effectiveMins,date,position,periods,targets:{}})}
+            style={{...btnSt(G.grayL,G.sub),flex:1,padding:'14px',fontSize:15,borderRadius:14}}>
+            {t('skip_targets')}
+          </button>
+          <button onClick={()=>onStart({type,name:name.trim(),totalMins:effectiveMins,date,position,periods,targets})}
+            style={{...btnSt(G.green),flex:2,padding:'14px',fontSize:15,borderRadius:14,boxShadow:'0 4px 12px rgba(45,139,45,.25)'}}>
+            <Play size={18} fill="#fff"/> {t('start_tracking')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   return(
     <div style={{display:'flex',flexDirection:'column',height:'100%'}}>
       <AppHeader title={t('new_game')} onBack={onBack} lang={lang} setLang={setLang}/>
@@ -996,21 +1076,11 @@ function NewGameSetup({categories,onStart,onBack,lang,setLang}){
           </div>
           <input type="number" min={1} max={200} value={customMin} onChange={e=>setCustomMin(e.target.value)} placeholder={t('custom_min_ph')} style={inp({fontSize:14})}/>
         </div>
-        {/* Periods */}
         <div style={{marginBottom:18}}>
-          <div style={{fontSize:12,fontWeight:700,color:G.sub,textTransform:'uppercase',letterSpacing:.5,marginBottom:8}}>
-            {t('periods_label')}
-            {periods>1&&effectiveMins>0&&<span style={{fontWeight:400,marginLeft:6,color:G.blue}}>· ~{Math.round(effectiveMins/periods)} min each</span>}
-          </div>
+          <div style={{fontSize:12,fontWeight:700,color:G.sub,textTransform:'uppercase',letterSpacing:.5,marginBottom:8}}>{t('periods_label')} {periods>1&&effectiveMins>0&&<span style={{fontWeight:400,marginLeft:6,color:G.blue}}>· ~{Math.round(effectiveMins/periods)} min each</span>}</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:8}}>
             {[[1,t('periods_none')],[2,t('periods_2')],[3,t('periods_3')],[4,t('periods_4')]].map(([v,lbl])=>(
-              <button key={v} onClick={()=>setPeriods(v)} style={{
-                padding:'12px 4px',textAlign:'center',
-                border:`2px solid ${periods===v?G.blue:G.border}`,
-                borderRadius:12,background:periods===v?G.blueBg:G.card,
-                color:periods===v?G.blue:G.sub,fontWeight:700,fontSize:11,
-                cursor:'pointer',fontFamily:'inherit',lineHeight:1.3,
-              }}>{lbl}</button>
+              <button key={v} onClick={()=>setPeriods(v)} style={{padding:'12px 4px',textAlign:'center',border:`2px solid ${periods===v?G.blue:G.border}`,borderRadius:12,background:periods===v?G.blueBg:G.card,color:periods===v?G.blue:G.sub,fontWeight:700,fontSize:11,cursor:'pointer',fontFamily:'inherit',lineHeight:1.3}}>{lbl}</button>
             ))}
           </div>
         </div>
@@ -1018,10 +1088,7 @@ function NewGameSetup({categories,onStart,onBack,lang,setLang}){
           <div style={{fontSize:12,fontWeight:700,color:G.sub,textTransform:'uppercase',letterSpacing:.5,marginBottom:8}}>{t('position_label')}</div>
           <button onClick={()=>setShowPos(s=>!s)} style={{width:'100%',padding:'14px',border:`2px solid ${G.border}`,borderRadius:12,background:G.card,cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',gap:12}}>
             <span style={{background:G.orange,color:'white',borderRadius:8,width:36,height:36,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,fontWeight:900,flexShrink:0}}>{pos.num}</span>
-            <div style={{textAlign:'left'}}>
-              <div style={{fontSize:15,fontWeight:700,color:G.text}}>{pos.code} — {t(pos.nameKey)}</div>
-              <div style={{fontSize:12,color:G.sub}}>{t('tap_to_change')}</div>
-            </div>
+            <div style={{textAlign:'left'}}><div style={{fontSize:15,fontWeight:700,color:G.text}}>{pos.code} — {t(pos.nameKey)}</div><div style={{fontSize:12,color:G.sub}}>{t('tap_to_change')}</div></div>
             <ChevronDown size={18} color={G.muted} style={{marginLeft:'auto'}}/>
           </button>
           {showPos&&(
@@ -1037,136 +1104,145 @@ function NewGameSetup({categories,onStart,onBack,lang,setLang}){
             </div>
           )}
         </div>
-        <div style={{...card(),marginBottom:20}}>
-          <div style={{fontSize:13,fontWeight:700,color:G.text,marginBottom:8}}>{t('tracking_label')}</div>
-          <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-            {activeCats.map(c=>{const cn=c.custom?c.name:t(c.nameKey);return(<span key={c.id} style={pill(c.color+'18',c.color)}>{cn} ({c.measures.filter(m=>m.active).length})</span>);})}
-          </div>
-        </div>
-        <button onClick={()=>onStart({type,name:name.trim(),totalMins:effectiveMins,date,position,periods})} style={{...btnSt(G.green),width:'100%',padding:'18px',fontSize:17,borderRadius:14,boxShadow:'0 6px 16px rgba(45,139,45,0.28)'}}>
-          <Play size={20} fill="#fff"/> {t('start_tracking')}
+        <button onClick={()=>setStep('targets')} style={{...btnSt(G.green),width:'100%',padding:'18px',fontSize:17,borderRadius:14,boxShadow:'0 6px 16px rgba(45,139,45,0.28)'}}>
+          Next: Set targets →
         </button>
       </div>
     </div>
   );
 }
 
-// ─── Active Game ──────────────────────────────────────────────────
-// ─── Active Game ──────────────────────────────────────────────────
 function ActiveGame({setup,categories,onEnd}){
   const t=useT();
   const periods      = setup.periods||1;
   const perPeriodMins= periods>1 ? Math.round(setup.totalMins/periods) : setup.totalMins;
 
-  const [metrics,      setMetrics]      = useState({});  // total across all periods (for saving)
-  const [periodMetrics,setPeriodMetrics]= useState([{}]);  // per-period counters, resets each period
-  const [events,       setEvents]       = useState([]);
-  const [activeCat,    setActiveCat]    = useState(null);
-  const [elapsed,      setElapsed]      = useState(0);
-  const [currentPeriod,setCurrentPeriod]= useState(1);
-  const [periodStarts, setPeriodStarts] = useState([0]); // ms elapsed when each period started
-  const [onPitch,      setOnPitch]      = useState(true);
-  const [subs,         setSubs]         = useState([{elapsedMs:0,type:'on',period:1}]);
-  const [showPosPick,  setShowPosPick]  = useState(false);
-  const [position,     setPosition]     = useState(setup.position||9);
-  const [endScreen,    setEndScreen]    = useState(false);
-  const [overrideMins, setOverrideMins] = useState(null);
+  const [metrics,       setMetrics]      = useState({});
+  const [periodMetrics, setPeriodMetrics]= useState([{}]);
+  const [events,        setEvents]       = useState([]);
+  const [activeCat,     setActiveCat]    = useState(null);
+  const [elapsed,       setElapsed]      = useState(0);
+  const [currentPeriod, setCurrentPeriod]= useState(1);
+  const [periodStarts,  setPeriodStarts] = useState([0]);
+  // Period log: records start/end wall-clock and ms for each period
+  const [periodLog,     setPeriodLog]    = useState([{period:1, startMs:0, startWall:new Date().toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'})}]);
+  const [gameStartWall] = useState(()=>new Date().toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit',second:'2-digit'}));
+  const [onPitch,       setOnPitch]      = useState(true);
+  const [subs,          setSubs]         = useState([{elapsedMs:0,type:'on',period:1}]);
+  const [showPosPick,   setShowPosPick]  = useState(false);
+  const [position,      setPosition]     = useState(setup.position||9);
+  const [endScreen,     setEndScreen]    = useState(false);
+  const [overrideMins,  setOverrideMins] = useState(null);
+  const [gameEndWall,   setGameEndWall]  = useState(null);
 
-  const startRef=useRef(Date.now()), accRef=useRef(0), timerRef=useRef(null), runRef=useRef(true);
-
+  const startRef=useRef(Date.now()), accRef=useRef(0), timerRef=useRef(null);
   const activeCats=categories.filter(c=>c.measures.some(m=>m.active));
   useEffect(()=>{ if(!activeCat&&activeCats.length) setActiveCat(activeCats[0].id); },[]);
-
-  // Always-running timer (no pause button)
   useEffect(()=>{
     startRef.current=Date.now();
     timerRef.current=setInterval(()=>setElapsed(accRef.current+(Date.now()-startRef.current)),500);
     return()=>clearInterval(timerRef.current);
   },[]);
 
-  // Current total elapsed (ms)
-  const nowMs = () => accRef.current+(Date.now()-startRef.current);
+  const nowMs=()=>accRef.current+(Date.now()-startRef.current);
+  const wallNow=()=>new Date().toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 
-  // Period-relative elapsed for display
-  const periodStartMs    = periodStarts[currentPeriod-1]||0;
-  const periodElapsed    = Math.max(0, elapsed - periodStartMs);
-  const isLastPeriod     = currentPeriod>=periods;
-  const pName            = getPeriodName(periods, currentPeriod, t);
-  const elapsedMins      = Math.round(elapsed/60000);
-  const minsPlayed       = overrideMins!==null ? overrideMins : elapsedMins;
-  const currentCat       = activeCats.find(c=>c.id===activeCat);
-  const total            = Object.values(metrics).reduce((s,v)=>s+v,0);
-  const typeDef          = gameTypeDef(setup.type);
-  const pos              = posOf(position);
+  const periodStartMs = periodStarts[currentPeriod-1]||0;
+  const periodElapsed = Math.max(0, elapsed-periodStartMs);
+  const isLastPeriod  = currentPeriod>=periods;
+  const pName         = getPeriodName(periods,currentPeriod,t);
+  const elapsedMins   = Math.round(elapsed/60000);
+  const minsPlayed    = overrideMins!==null ? overrideMins : elapsedMins;
+  const currentCat    = activeCats.find(c=>c.id===activeCat);
+  const total         = Object.values(metrics).reduce((s,v)=>s+v,0);
+  const typeDef       = gameTypeDef(setup.type);
+  const pos           = posOf(position);
 
-  // Calculate actual minutes on pitch from subs array
-  const pitchMins = () => {
-    let total=0, lastOn=0;
+  const pitchMins=()=>{
+    let tot=0,lastOn=0;
     for(const s of subs){
-      if(s.type==='off') total+=s.elapsedMs-lastOn;
+      if(s.type==='off') tot+=s.elapsedMs-lastOn;
       if(s.type==='on')  lastOn=s.elapsedMs;
     }
-    if(onPitch) total+=nowMs()-lastOn;
-    return Math.round(total/60000);
+    if(onPitch) tot+=nowMs()-lastOn;
+    return Math.round(tot/60000);
   };
 
   const inc=id=>{
     const ms=nowMs();
     setEvents(es=>[...es,{id:uid(),metricId:id,elapsedMs:ms,period:currentPeriod,onPitch}]);
-    // Update per-period counter (shown in grid, resets each period)
-    setPeriodMetrics(pm=>{
-      const up=[...pm];
-      const pi=currentPeriod-1;
-      up[pi]={...up[pi],[id]:(up[pi][id]||0)+1};
-      return up;
-    });
-    // Keep running total for display in end screen
+    setPeriodMetrics(pm=>{const up=[...pm];const pi=currentPeriod-1;up[pi]={...up[pi],[id]:(up[pi][id]||0)+1};return up;});
     setMetrics(m=>({...m,[id]:(m[id]||0)+1}));
   };
   const dec=id=>{
-    // Only remove event from current period
-    setEvents(es=>{
-      const all=[...es].map((e,j)=>({e,j})).filter(x=>x.e.metricId===id&&x.e.period===currentPeriod);
-      if(!all.length) return es;
-      return es.filter((_,j)=>j!==all[all.length-1].j);
-    });
-    setPeriodMetrics(pm=>{
-      const up=[...pm];
-      const pi=currentPeriod-1;
-      if((up[pi][id]||0)<=0) return pm;  // nothing in this period to remove
-      up[pi]={...up[pi],[id]:Math.max(0,(up[pi][id]||0)-1)};
-      return up;
-    });
+    setEvents(es=>{const all=[...es].map((e,j)=>({e,j})).filter(x=>x.e.metricId===id&&x.e.period===currentPeriod);if(!all.length)return es;return es.filter((_,j)=>j!==all[all.length-1].j);});
+    setPeriodMetrics(pm=>{const up=[...pm];const pi=currentPeriod-1;if((up[pi][id]||0)<=0)return pm;up[pi]={...up[pi],[id]:Math.max(0,(up[pi][id]||0)-1)};return up;});
     setMetrics(m=>({...m,[id]:Math.max(0,(m[id]||0)-1)}));
   };
 
-  // Sum periodMetrics into a single total object (for saving)
-  const sumPeriodMetrics=(pm)=>{
-    const total={};
-    for(const p of pm) for(const[k,v] of Object.entries(p)) total[k]=(total[k]||0)+v;
-    return total;
-  };
+  const sumPeriodMetrics=pm=>{const total={};for(const p of pm)for(const[k,v]of Object.entries(p))total[k]=(total[k]||0)+v;return total;};
 
   const togglePitch=()=>{
     const ms=nowMs();
-    const type=onPitch?'off':'on';
-    setSubs(s=>[...s,{elapsedMs:ms,type,period:currentPeriod}]);
+    setSubs(s=>[...s,{elapsedMs:ms,type:onPitch?'off':'on',period:currentPeriod}]);
     setOnPitch(v=>!v);
   };
 
   const advancePeriod=()=>{
     if(isLastPeriod) return;
     const ms=nowMs();
+    const wall=wallNow();
+    // Close current period in log
+    setPeriodLog(pl=>{
+      const up=[...pl];
+      up[currentPeriod-1]={...up[currentPeriod-1],endMs:ms,endWall:wall,durationMins:Math.round((ms-(periodStarts[currentPeriod-1]||0))/60000)};
+      // Open next period
+      return [...up,{period:currentPeriod+1,startMs:ms,startWall:wall}];
+    });
     setPeriodStarts(ps=>[...ps,ms]);
     setCurrentPeriod(p=>p+1);
-    setPeriodMetrics(pm=>[...pm,{}]);  // add fresh empty object → counters reset to 0
+    setPeriodMetrics(pm=>[...pm,{}]);
     setSubs(s=>[...s,{elapsedMs:ms,type:'period',period:currentPeriod+1}]);
   };
 
+  const handleEndGame=()=>{
+    const ms=nowMs();
+    const wall=wallNow();
+    setGameEndWall(wall);
+    // Close final period
+    setPeriodLog(pl=>{
+      const up=[...pl];
+      up[currentPeriod-1]={...up[currentPeriod-1],endMs:ms,endWall:wall,durationMins:Math.round((ms-(periodStarts[currentPeriod-1]||0))/60000)};
+      return up;
+    });
+    setEndScreen(true);
+  };
+
+  const buildGame=()=>({
+    id:Date.now().toString(), date:setup.date, name:setup.name, type:setup.type,
+    totalMinutes:setup.totalMins, minutesPlayed:minsPlayed, position,
+    periods, metrics:sumPeriodMetrics(periodMetrics), periodMetrics, events, subs,
+    targets: setup.targets||{},
+    startTime: gameStartWall, endTime: gameEndWall||wallNow(), periodLog,
+  });
+
+  // ── END SCREEN ────────────────────────────────────────────────────
   if(endScreen) return(
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
       <AppHeader title={t("end_game_title")} subtitle={setup.name||undefined} onBack={()=>setEndScreen(false)}/>
       <div style={{flex:1,overflowY:"auto",padding:"16px 16px 90px"}}>
+
+        {/* Time info */}
+        <div style={{...card(),marginBottom:12,display:'flex',gap:0,overflow:'hidden',padding:0}}>
+          {[{label:t('game_start_time'),val:gameStartWall},{label:t('game_end_time'),val:gameEndWall||wallNow()}].map((x,i)=>(
+            <div key={i} style={{flex:1,padding:'14px',textAlign:'center',borderRight:i===0?`1px solid ${G.border}`:'none'}}>
+              <div style={{fontSize:11,fontWeight:700,color:G.sub,marginBottom:4}}>{x.label}</div>
+              <div style={{fontSize:20,fontWeight:900,color:G.blue}}>{x.val}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Minutes played */}
         <div style={{...card(),marginBottom:12}}>
           <div style={{fontSize:12,fontWeight:700,color:G.sub,textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>{t("min_played")}</div>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
@@ -1178,6 +1254,27 @@ function ActiveGame({setup,categories,onEnd}){
             {t("timer_label",{m:elapsedMins})} · {t("on_pitch_mins",{m:pitchMins()})}
           </div>
         </div>
+
+        {/* Period log */}
+        {periods>1&&periodLog.length>0&&(
+          <div style={{...card(),marginBottom:12}}>
+            <div style={{fontSize:12,fontWeight:700,color:G.sub,textTransform:"uppercase",letterSpacing:.5,marginBottom:8}}>{t('period_dur')}</div>
+            {periodLog.map((pl,i)=>{
+              const color=['#1565C0','#E64A19','#2D8B2D','#534AB7'][i%4];
+              return(
+                <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'7px 0',borderTop:i>0?`1px solid ${G.border}`:'none'}}>
+                  <span style={{fontSize:13,fontWeight:700,color}}>{t('period_of',{n:pl.period,name:getPeriodName(periods,pl.period,t)})}</span>
+                  <span style={{fontSize:12,color:G.sub}}>
+                    {pl.startWall} → {pl.endWall||'—'}
+                    {pl.durationMins!=null&&<span style={{color,fontWeight:700,marginLeft:6}}>{pl.durationMins} min</span>}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Position */}
         <div style={{...card(),marginBottom:12}}>
           <div style={{fontSize:12,fontWeight:700,color:G.sub,textTransform:"uppercase",letterSpacing:.5,marginBottom:8}}>{t("pos_played")}</div>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
@@ -1185,28 +1282,52 @@ function ActiveGame({setup,categories,onEnd}){
             <span style={{fontSize:15,fontWeight:700,color:G.text}}>{pos.code} — {t(pos.nameKey)}</span>
           </div>
         </div>
-        {/* Sub history */}
-        {subs.length>1&&(
-          <div style={{...card(),marginBottom:12}}>
-            <div style={{fontSize:12,fontWeight:700,color:G.sub,textTransform:"uppercase",letterSpacing:.5,marginBottom:8}}>Substitutions</div>
-            {subs.filter(s=>s.type!=='period').map((s,i)=>(
-              <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:`1px solid ${G.border}`,fontSize:13}}>
-                <span style={{color:s.type==='on'?G.green:G.orange,fontWeight:600}}>{s.type==='on'?'▶ On':'⏸ Off'}</span>
-                <span style={{color:G.sub}}>{Math.floor(s.elapsedMs/60000)}:{String(Math.floor((s.elapsedMs%60000)/1000)).padStart(2,'0')} · {t('period_of',{n:s.period,name:getPeriodName(periods,s.period,t)})}</span>
-              </div>
-            ))}
-          </div>
-        )}
-        <div style={{...card(),marginBottom:20}}>
+
+        {/* Stats total */}
+        <div style={{...card(),marginBottom:12}}>
           <div style={{fontSize:12,fontWeight:700,color:G.sub,textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>{t("stats_total",{n:total})}</div>
-          {Object.entries(metrics).filter(([,v])=>v>0).map(([id,v])=>{
-            let nm=id,col=G.blue;
-            for(const c of categories){const m=c.measures.find(m=>m.id===id);if(m){nm=m.custom?m.name:t(m.nameKey);col=c.color;break;}}
-            return(<div key={id} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${G.border}`}}><span style={{fontSize:14,color:G.text}}>{nm}</span><span style={{fontSize:14,fontWeight:700,color:col}}>{v}</span></div>);
+          {categories.filter(c=>c.measures.some(m=>m.active&&(metrics[m.id]||0)>0)).map(cat=>{
+            const catName=cat.custom?cat.name:t(cat.nameKey);
+            return(
+              <div key={cat.id} style={{marginBottom:10}}>
+                <div style={{fontSize:12,fontWeight:700,color:cat.color,marginBottom:5}}>{catName}</div>
+                {cat.measures.filter(m=>m.active&&(metrics[m.id]||0)>0).map(m=>{
+                  const nm=m.custom?m.name:t(m.nameKey);
+                  const target=setup.targets?.[m.id];
+                  const val=metrics[m.id]||0;
+                  const hit=target!=null&&val>=target;
+                  return(
+                    <div key={m.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",borderBottom:`1px solid ${G.border}`}}>
+                      <span style={{fontSize:13,color:G.text}}>{nm}</span>
+                      <div style={{display:'flex',alignItems:'center',gap:8}}>
+                        {target!=null&&(
+                          <span style={{fontSize:11,color:G.sub}}>target: {target}</span>
+                        )}
+                        <span style={{fontSize:14,fontWeight:700,color:target!=null?(hit?G.green:G.red):cat.color}}>{val}</span>
+                        {target!=null&&<span style={{fontSize:14}}>{hit?'✓':'✗'}</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
           })}
           {total===0&&<div style={{color:G.muted,fontSize:13,textAlign:"center",padding:"8px 0"}}>{t("no_stats")}</div>}
         </div>
-        <button onClick={()=>onEnd({id:Date.now().toString(),date:setup.date,name:setup.name,type:setup.type,totalMinutes:setup.totalMins,minutesPlayed:minsPlayed,position,periods,metrics:sumPeriodMetrics(periodMetrics),periodMetrics,events,subs})}
+
+        {/* Targets summary */}
+        {setup.targets&&Object.keys(setup.targets).length>0&&(()=>{
+          const allHit=Object.entries(setup.targets).every(([id,tgt])=>(metrics[id]||0)>=tgt);
+          return(
+            <div style={{...card(),marginBottom:20,background:allHit?G.greenBg:G.grayL,border:`1px solid ${allHit?G.green:G.border}`}}>
+              <div style={{fontSize:14,fontWeight:700,color:allHit?G.green:G.sub,textAlign:'center'}}>
+                {allHit?t('all_targets_hit'):`${Object.entries(setup.targets).filter(([id,tgt])=>(metrics[id]||0)>=tgt).length}/${Object.keys(setup.targets).length} targets hit`}
+              </div>
+            </div>
+          );
+        })()}
+
+        <button onClick={()=>onEnd(buildGame())}
           style={{...btnSt(G.green),width:"100%",padding:"16px",fontSize:16,borderRadius:14}}>
           <Check size={18}/> {t("save_game")}
         </button>
@@ -1214,99 +1335,86 @@ function ActiveGame({setup,categories,onEnd}){
     </div>
   );
 
+  // ── ACTIVE TRACKING ────────────────────────────────────────────
   return(
     <div style={{display:"flex",flexDirection:"column",height:"100vh",background:G.bg,overflow:"hidden",position:"relative"}}>
-      {/* ── Header ── */}
       <div style={{background:onPitch?G.blue:"#4A4A4A",padding:"10px 14px",color:"white",flexShrink:0,transition:"background .3s"}}>
-        {/* Row 1: logo / type / name / events */}
+        {/* Row 1 */}
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
             <GISLogo size={26} dark/>
             <span style={pill(typeDef.color+"44","white")}>{t(typeDef.labelKey)}</span>
             {setup.name&&<span style={{fontSize:12,opacity:.8,fontWeight:600,maxWidth:80,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{setup.name}</span>}
           </div>
-          <span style={{fontSize:11,opacity:.7}}>{Object.values(periodMetrics[currentPeriod-1]||{}).reduce((s,v)=>s+v,0)} {t("events")}</span>
+          <div style={{textAlign:'right'}}>
+            <div style={{fontSize:9,opacity:.6}}>🕐 {gameStartWall}</div>
+            <div style={{fontSize:10,opacity:.7}}>{Object.values(periodMetrics[currentPeriod-1]||{}).reduce((s,v)=>s+v,0)} {t("events")}</div>
+          </div>
         </div>
 
-        {/* Row 2: period dots + timer + position */}
+        {/* Period dots */}
+        {periods>1&&(
+          <div style={{display:"flex",gap:4,marginBottom:4}}>
+            {Array.from({length:periods},(_,i)=>(
+              <div key={i} style={{flex:1,height:3,borderRadius:2,background:i+1<currentPeriod?"rgba(255,255,255,.9)":i+1===currentPeriod?"white":"rgba(255,255,255,.25)"}}/>
+            ))}
+          </div>
+        )}
+
+        {/* Timer row */}
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
           <div style={{flex:1}}>
-            {/* Period progress dots */}
-            {periods>1&&(
-              <div style={{display:"flex",gap:4,marginBottom:4}}>
-                {Array.from({length:periods},(_,i)=>(
-                  <div key={i} style={{flex:1,height:3,borderRadius:2,background:i+1<currentPeriod?"rgba(255,255,255,.9)":i+1===currentPeriod?"white":"rgba(255,255,255,.25)"}}/>
-                ))}
-              </div>
-            )}
             <div style={{display:"flex",alignItems:"baseline",gap:6}}>
               <span style={{fontSize:38,fontWeight:900,letterSpacing:1,lineHeight:1}}>{fmtTimer(periodElapsed)}</span>
               {periods>1&&<span style={{fontSize:11,opacity:.65}}>{t("period_of",{n:currentPeriod,name:pName})}</span>}
             </div>
             <div style={{fontSize:10,opacity:.55}}>total {fmtTimer(elapsed)} / {setup.totalMins} min</div>
           </div>
-          {/* Position badge */}
           <button onClick={()=>setShowPosPick(true)} style={{background:"rgba(255,255,255,.15)",border:"2px solid rgba(255,255,255,.3)",borderRadius:12,padding:"6px 10px",cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:6}}>
             <span style={{background:G.orange,color:"white",borderRadius:5,width:24,height:24,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:900}}>{pos.num}</span>
-            <div style={{textAlign:"left"}}>
-              <div style={{color:"white",fontWeight:700,fontSize:12}}>{pos.code}</div>
-              <div style={{color:"rgba(255,255,255,.55)",fontSize:9}}>{t("change")}</div>
-            </div>
+            <div><div style={{color:"white",fontWeight:700,fontSize:12}}>{pos.code}</div><div style={{color:"rgba(255,255,255,.55)",fontSize:9}}>{t("change")}</div></div>
           </button>
         </div>
 
-        {/* Row 3: controls */}
+        {/* Controls */}
         <div style={{display:"flex",gap:6}}>
-          {/* Substitution button */}
-          <button onClick={togglePitch} style={{
-            flex:1,padding:"8px 6px",
-            background:onPitch?"rgba(43,139,43,.35)":"rgba(230,74,25,.35)",
-            border:`2px solid ${onPitch?"rgba(43,139,43,.7)":"rgba(230,74,25,.7)"}`,
-            borderRadius:10,color:"white",cursor:"pointer",fontFamily:"inherit",
-            display:"flex",alignItems:"center",justifyContent:"center",gap:5,fontWeight:700,fontSize:13,
-          }}>
+          <button onClick={togglePitch} style={{flex:1,padding:"8px 6px",background:onPitch?"rgba(43,139,43,.35)":"rgba(230,74,25,.35)",border:`2px solid ${onPitch?"rgba(43,139,43,.7)":"rgba(230,74,25,.7)"}`,borderRadius:10,color:"white",cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:5,fontWeight:700,fontSize:13}}>
             {onPitch?<>🟢 {t("sub_off")}</>:<>🔴 {t("sub_on")}</>}
           </button>
-
-          {/* Next period */}
           {periods>1&&!isLastPeriod&&(
-            <button onClick={advancePeriod} style={{
-              flex:1,padding:"8px 6px",
-              background:"rgba(249,168,37,.3)",border:"2px solid rgba(249,168,37,.7)",
-              borderRadius:10,color:"white",cursor:"pointer",fontFamily:"inherit",
-              display:"flex",alignItems:"center",justifyContent:"center",gap:5,fontWeight:700,fontSize:13,
-            }}>
+            <button onClick={advancePeriod} style={{flex:1,padding:"8px 6px",background:"rgba(249,168,37,.3)",border:"2px solid rgba(249,168,37,.7)",borderRadius:10,color:"white",cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:5,fontWeight:700,fontSize:12}}>
               {t("next_period")}
             </button>
           )}
-
-          {/* End game */}
-          <button onClick={()=>setEndScreen(true)} style={{
-            flex:1,padding:"8px 6px",
-            background:"rgba(198,40,40,.35)",border:"2px solid rgba(198,40,40,.7)",
-            borderRadius:10,color:"white",cursor:"pointer",fontFamily:"inherit",
-            display:"flex",alignItems:"center",justifyContent:"center",gap:5,fontWeight:700,fontSize:13,
-          }}>
+          <button onClick={handleEndGame} style={{flex:1,padding:"8px 6px",background:"rgba(198,40,40,.35)",border:"2px solid rgba(198,40,40,.7)",borderRadius:10,color:"white",cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:5,fontWeight:700,fontSize:13}}>
             <StopCircle size={14}/> {t("end_game")}
           </button>
         </div>
       </div>
 
-      {/* ── Category tabs ── */}
+      {/* Category tabs */}
       <div style={{display:"flex",overflowX:"auto",background:G.card,borderBottom:`1px solid ${G.border}`,flexShrink:0,scrollbarWidth:"none"}}>
         {activeCats.map(c=>{const cn=c.custom?c.name:t(c.nameKey);return(
           <button key={c.id} onClick={()=>setActiveCat(c.id)} style={{padding:"10px 14px",border:"none",background:"none",borderBottom:`3px solid ${activeCat===c.id?c.color:"transparent"}`,color:activeCat===c.id?c.color:G.sub,fontWeight:activeCat===c.id?700:400,fontSize:13,cursor:"pointer",whiteSpace:"nowrap",fontFamily:"inherit"}}>{cn}</button>
         );})}
       </div>
 
-      {/* ── Counter grid ── */}
+      {/* Counter grid */}
       <div style={{flex:1,overflowY:"auto",padding:"10px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,alignContent:"start",opacity:onPitch?1:0.6}}>
         {currentCat?.measures.filter(m=>m.active).map(m=>{
           const count=(periodMetrics[currentPeriod-1]||{})[m.id]||0;
           const mName=m.custom?m.name:t(m.nameKey);
+          const target=setup.targets?.[m.id];
+          const totalCount=metrics[m.id]||0;
+          const hit=target!=null&&totalCount>=target;
           return(
             <div key={m.id} style={{background:G.card,borderRadius:16,border:`2px solid ${count>0?currentCat.color:G.border}`,padding:"12px 10px",display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
               <div style={{fontSize:12,fontWeight:600,color:G.sub,textAlign:"center",lineHeight:1.3}}>{mName}</div>
+              {target!=null&&(
+                <div style={{fontSize:10,color:hit?G.green:G.muted,fontWeight:700}}>
+                  {totalCount}/{target} {hit?'✓':''}
+                </div>
+              )}
               <div style={{fontSize:48,fontWeight:900,lineHeight:1,color:count>0?currentCat.color:G.text}}>{count}</div>
               <div style={{display:"flex",gap:6,width:"100%"}}>
                 <button onClick={()=>dec(m.id)} style={{flex:1,padding:"9px 0",background:G.grayL,border:"none",borderRadius:8,cursor:"pointer",fontWeight:700,fontSize:20,color:G.sub,fontFamily:"inherit"}}>−</button>
@@ -1350,6 +1458,164 @@ function getValForScope(g,mId,scope){
 // Value for a defined time-range "segment" — used in comparison
 function getSegVal(g,mId,seg){
   return getValForScope(g,mId,{type:'range',from:seg.from,to:seg.to});
+}
+
+// ─── Game Summary ─────────────────────────────────────────────────
+function GameSummary({game, categories, onBack, onAnalyse, onEdit, lang, setLang}){
+  const t       = useT();
+  const typeDef = gameTypeDef(game.type);
+  const pos     = game.position ? posOf(game.position) : null;
+  const periods = game.periods||1;
+  const targets = game.targets||{};
+  const hasTargets = Object.keys(targets).length>0;
+
+  const targetEntries = hasTargets ? Object.entries(targets).map(([id,tgt])=>{
+    let mName=id,col=G.blue;
+    for(const c of categories){const m=c.measures.find(m=>m.id===id);if(m){mName=m.custom?m.name:t(m.nameKey);col=c.color;break;}}
+    const actual=game.metrics?.[id]||0;
+    const hit=actual>=tgt;
+    return {id,mName,col,tgt,actual,hit};
+  }) : [];
+  const hitsCount = targetEntries.filter(x=>x.hit).length;
+  const allHit    = targetEntries.length>0 && hitsCount===targetEntries.length;
+
+  return(
+    <div style={{display:'flex',flexDirection:'column',height:'100%'}}>
+      <AppHeader
+        title={game.name||t(typeDef.labelKey)}
+        subtitle={game.date?new Date(game.date).toLocaleDateString('pl-PL',{day:'numeric',month:'long',year:'numeric'}):''}
+        onBack={onBack} lang={lang} setLang={setLang}
+        right={
+          <div style={{display:'flex',gap:6}}>
+            <button onClick={()=>onEdit(game)} style={{background:'rgba(255,255,255,.15)',border:'1px solid rgba(255,255,255,.3)',borderRadius:8,padding:'6px 10px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:12,fontWeight:600,display:'flex',alignItems:'center',gap:4}}><Pencil size={13}/> Edit</button>
+            <button onClick={()=>onAnalyse(game)} style={{background:'rgba(255,255,255,.15)',border:'1px solid rgba(255,255,255,.3)',borderRadius:8,padding:'6px 10px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:12,fontWeight:600,display:'flex',alignItems:'center',gap:4}}><BarChart2 size={13}/> Analyse</button>
+          </div>
+        }/>
+      <div style={{flex:1,overflowY:'auto',padding:'12px 12px 90px'}}>
+
+        {/* Header info row */}
+        <div style={{...card(),marginBottom:12}}>
+          <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:10}}>
+            <span style={pill(typeDef.color+'22',typeDef.color)}>{t(typeDef.labelKey)}</span>
+            {periods>1&&<span style={pill(G.blueBg,G.blue)}>{periods === 2?t('periods_2'):periods===3?t('periods_3'):t('periods_4')}</span>}
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
+            {[
+              {l:'Duration',       v:`${game.minutesPlayed} min`},
+              {l:t('pos_played'),  v:pos?`#${pos.num} ${pos.code}`:t('not_set')},
+              {l:t('on_pitch_mins',{m:''}), v:`${game.minutesPlayed} min`},
+            ].map(x=>(
+              <div key={x.l} style={{textAlign:'center'}}>
+                <div style={{fontSize:14,fontWeight:900,color:G.blue}}>{x.v}</div>
+                <div style={{fontSize:10,color:G.sub,marginTop:2}}>{x.l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Start/end + period times */}
+        {(game.startTime||game.periodLog?.length>0)&&(
+          <div style={{...card(),marginBottom:12}}>
+            {game.startTime&&(
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
+                <div style={{textAlign:'center',flex:1}}>
+                  <div style={{fontSize:11,color:G.sub,marginBottom:2}}>{t('game_start_time')}</div>
+                  <div style={{fontSize:18,fontWeight:900,color:G.blue}}>{game.startTime}</div>
+                </div>
+                {game.endTime&&(
+                  <div style={{textAlign:'center',flex:1,borderLeft:`1px solid ${G.border}`}}>
+                    <div style={{fontSize:11,color:G.sub,marginBottom:2}}>{t('game_end_time')}</div>
+                    <div style={{fontSize:18,fontWeight:900,color:G.blue}}>{game.endTime}</div>
+                  </div>
+                )}
+              </div>
+            )}
+            {periods>1&&game.periodLog?.length>0&&(
+              <div style={{borderTop:`1px solid ${G.border}`,paddingTop:8}}>
+                {game.periodLog.map((pl,i)=>{
+                  const col=['#1565C0','#E64A19','#2D8B2D','#534AB7'][i%4];
+                  return(
+                    <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'5px 0',borderTop:i>0?`1px solid ${G.border}`:'none'}}>
+                      <span style={{fontSize:12,fontWeight:700,color:col}}>{t('period_of',{n:pl.period,name:getPeriodName(periods,pl.period,t)})}</span>
+                      <span style={{fontSize:11,color:G.sub}}>
+                        {pl.startWall} → {pl.endWall||'—'}
+                        {pl.durationMins!=null&&<strong style={{color:col,marginLeft:5}}>{pl.durationMins} min</strong>}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Targets vs results */}
+        {hasTargets&&(
+          <div style={{...card(),marginBottom:12,border:`2px solid ${allHit?G.green:G.border}`}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+              <div style={{fontSize:14,fontWeight:700,color:G.text}}>{t('targets_vs_actual')}</div>
+              <span style={{background:allHit?G.greenBg:G.grayL,color:allHit?G.green:G.sub,borderRadius:20,padding:'3px 10px',fontSize:11,fontWeight:700}}>
+                {hitsCount}/{targetEntries.length} hit
+              </span>
+            </div>
+            {targetEntries.map(({id,mName,col,tgt,actual,hit})=>{
+              const pct=Math.min(100,Math.round((actual/Math.max(tgt,1))*100));
+              return(
+                <div key={id} style={{marginBottom:10}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:4}}>
+                    <span style={{fontSize:13,color:G.text}}>{mName}</span>
+                    <div style={{display:'flex',alignItems:'center',gap:8}}>
+                      <span style={{fontSize:11,color:G.sub}}>target {tgt}</span>
+                      <span style={{fontSize:16,fontWeight:900,color:hit?G.green:G.red}}>{actual}</span>
+                      <span style={{fontSize:16}}>{hit?'✓':'✗'}</span>
+                    </div>
+                  </div>
+                  <div style={{height:8,background:G.grayL,borderRadius:4,overflow:'hidden'}}>
+                    <div style={{height:'100%',borderRadius:4,width:pct+'%',background:hit?G.green:G.red,transition:'width .4s'}}/>
+                  </div>
+                </div>
+              );
+            })}
+            {allHit&&<div style={{textAlign:'center',fontSize:14,fontWeight:700,color:G.green,marginTop:8}}>{t('all_targets_hit')}</div>}
+          </div>
+        )}
+
+        {/* Stats by category */}
+        {categories.filter(c=>c.measures.some(m=>m.active&&(game.metrics?.[m.id]||0)>0)).map(cat=>{
+          const catName=cat.custom?cat.name:t(cat.nameKey);
+          const meas=cat.measures.filter(m=>m.active&&(game.metrics?.[m.id]||0)>0);
+          const catTotal=meas.reduce((s,m)=>s+(game.metrics?.[m.id]||0),0);
+          return(
+            <div key={cat.id} style={{...card(),marginBottom:10}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <div style={{width:10,height:10,borderRadius:2,background:cat.color}}/>
+                  <span style={{fontSize:14,fontWeight:700,color:G.text}}>{catName}</span>
+                </div>
+                <span style={{fontSize:13,fontWeight:700,color:cat.color}}>{catTotal} total</span>
+              </div>
+              {meas.map(m=>{
+                const nm=m.custom?m.name:t(m.nameKey);
+                const val=game.metrics?.[m.id]||0;
+                const maxInCat=Math.max(...meas.map(x=>game.metrics?.[x.id]||0),1);
+                return(
+                  <div key={m.id} style={{marginBottom:6}}>
+                    <div style={{display:'flex',justifyContent:'space-between',marginBottom:2}}>
+                      <span style={{fontSize:12,color:G.sub}}>{nm}</span>
+                      <span style={{fontSize:13,fontWeight:700,color:cat.color}}>{val}</span>
+                    </div>
+                    <div style={{height:5,background:G.grayL,borderRadius:3,overflow:'hidden'}}>
+                      <div style={{height:'100%',borderRadius:3,width:Math.round((val/maxInCat)*100)+'%',background:cat.color}}/>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 // ─── Single Game Analysis ─────────────────────────────────────────
@@ -3180,6 +3446,7 @@ export default function GrowInSport(){
   const [gameSetup,  setGameSetup] =useState(null);
   const [editingGame,setEditingGame]=useState(null);
   const [analysingGame,setAnalysingGame]=useState(null);
+  const [summaryGame,  setSummaryGame]  =useState(null);
   const [comparisonConfig,setComparisonConfig]=useState(null);
   const [booting,    setBooting]   =useState(true);
 
@@ -3232,8 +3499,9 @@ export default function GrowInSport(){
   };
   const handleEdit    = game => { setEditingGame(game); setView('editGame'); };
   const handleAnalyse  = game   => { setAnalysingGame(game);    setView('gameDetail');    };
+  const handleSummary  = game   => { setSummaryGame(game);      setView('gameSummary');   };
   const handleCompare  = config => { setComparisonConfig(config); setView('gameCompare'); };
-  const showNav=!['newGame','activeGame','feedback','editGame','gameDetail','gameCompare'].includes(view);
+  const showNav=!['newGame','activeGame','feedback','editGame','gameDetail','gameCompare','gameSummary'].includes(view);
 
   const ST=`@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;900&display=swap');*{box-sizing:border-box;margin:0;padding:0;}`;
 
@@ -3255,8 +3523,8 @@ export default function GrowInSport(){
         {username&&(
           <>
             <div style={{flex:1,overflowY:'auto',display:'flex',flexDirection:'column'}}>
-              {view==='dashboard' && <Dashboard    games={games} categories={categories} playerName={playerName} age={age} onStartGame={()=>setView('newGame')} onDonate={()=>window.open('https://ko-fi.com/luckyluk','_blank')} onFeedback={()=>setView('feedback')} onEdit={handleEdit} onAnalyse={handleAnalyse} {...props}/>}
-              {view==='games'     && <GamesList    games={games} categories={categories} onStartGame={()=>setView('newGame')} onDelete={deleteGame} onEdit={handleEdit} onAnalyse={handleAnalyse} onCompare={handleCompare} {...props}/>}
+              {view==='dashboard' && <Dashboard    games={games} categories={categories} playerName={playerName} age={age} onStartGame={()=>setView('newGame')} onDonate={()=>window.open('https://ko-fi.com/luckyluk','_blank')} onFeedback={()=>setView('feedback')} onEdit={handleEdit} onAnalyse={handleAnalyse} onSummary={handleSummary} {...props}/>}
+              {view==='games'     && <GamesList    games={games} categories={categories} onStartGame={()=>setView('newGame')} onDelete={deleteGame} onEdit={handleEdit} onAnalyse={handleAnalyse} onCompare={handleCompare} onSummary={handleSummary} {...props}/>}
               {view==='newGame'   && <NewGameSetup categories={categories} onStart={s=>{setGameSetup(s);setView('activeGame');}} onBack={()=>setView('games')} {...props}/>}
               {view==='activeGame'&& gameSetup && <ActiveGame setup={gameSetup} categories={categories} onEnd={g=>{sbSaveGame(g);setGames(gs=>[...gs,g]);setGameSetup(null);setView('games');}}/>}
               {view==='progress'  && <ProgressView games={games} categories={categories} {...props}/>}
@@ -3267,6 +3535,7 @@ export default function GrowInSport(){
                 onSave={g=>{sbSaveGame(g);setGames(gs=>gs.map(x=>x.id===g.id?g:x));setEditingGame(null);setView('games');}}
                 onBack={()=>{setEditingGame(null);setView('games');}}/>}
               {view==='gameDetail'&& analysingGame && <GameDetail game={analysingGame} categories={categories} onBack={()=>{setAnalysingGame(null);setView('games');}} {...props}/>}
+              {view==='gameSummary'&& summaryGame && <GameSummary game={summaryGame} categories={categories} onBack={()=>{setSummaryGame(null);setView('games');}} onEdit={g=>{setEditingGame(g);setSummaryGame(null);setView('editGame');}} onAnalyse={g=>{setAnalysingGame(g);setSummaryGame(null);setView('gameDetail');}} {...props}/>}
               {view==='gameCompare'&& comparisonConfig && <GameComparison config={comparisonConfig} allGames={games} categories={categories} onBack={()=>{setComparisonConfig(null);setView('games');}} {...props}/>}
 
             </div>
