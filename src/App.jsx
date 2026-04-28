@@ -1568,7 +1568,7 @@ function getSegVal(g,mId,seg){
 }
 
 // ─── Game Summary ─────────────────────────────────────────────────
-function GameSummary({game, categories, onBack, onAnalyse, onEdit, lang, setLang}){
+function GameSummary({game, categories, onBack, onAnalyse, onEdit, onDelete, lang, setLang}){
   const t       = useT();
   const typeDef = gameTypeDef(game.type);
   const pos     = game.position ? posOf(game.position) : null;
@@ -1596,6 +1596,7 @@ function GameSummary({game, categories, onBack, onAnalyse, onEdit, lang, setLang
           <div style={{display:'flex',gap:6}}>
             <button onClick={()=>onEdit(game)} style={{background:'rgba(255,255,255,.15)',border:'1px solid rgba(255,255,255,.3)',borderRadius:8,padding:'6px 10px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:12,fontWeight:600,display:'flex',alignItems:'center',gap:4}}><Pencil size={13}/> Edit</button>
             <button onClick={()=>onAnalyse(game)} style={{background:'rgba(255,255,255,.15)',border:'1px solid rgba(255,255,255,.3)',borderRadius:8,padding:'6px 10px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:12,fontWeight:600,display:'flex',alignItems:'center',gap:4}}><BarChart2 size={13}/> Analyse</button>
+            {onDelete&&<button onClick={()=>{if(window.confirm('Delete this game?')){onDelete(game.id);}}} style={{background:'rgba(198,40,40,.3)',border:'1px solid rgba(198,40,40,.5)',borderRadius:8,padding:'6px 10px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:12,fontWeight:600,display:'flex',alignItems:'center',gap:4}}><Trash2 size={13}/></button>}
           </div>
         }/>
       <div style={{flex:1,overflowY:'auto',padding:'12px 12px 90px'}}>
@@ -3670,6 +3671,7 @@ export default function GrowInSport(){
                   game={summaryGame}
                   categories={categories}
                   onBack={()=>setSummaryGame(null)}
+                  onDelete={id=>{setSummaryGame(null);deleteGame(id);}}
                   onEdit={g=>{setSummaryGame(null);setEditingGame(g);setView('editGame');}}
                   onAnalyse={g=>{setSummaryGame(null);setAnalysingGame(g);setView('gameDetail');}}
                   {...props}/>
