@@ -1703,15 +1703,24 @@ function GameSummary({game, categories, onBack, onAnalyse, onEdit, lang, setLang
               {meas.map(m=>{
                 const nm=m.custom?m.name:t(m.nameKey);
                 const val=game.metrics?.[m.id]||0;
-                const maxInCat=Math.max(...meas.map(x=>game.metrics?.[x.id]||0),1);
+                const tgt=targets[m.id];
+                const hit=tgt!=null&&val>=tgt;
+                const maxInCat=Math.max(...meas.map(x=>game.metrics?.[x.id]||0),tgt||0,1);
                 return(
-                  <div key={m.id} style={{marginBottom:6}}>
-                    <div style={{display:'flex',justifyContent:'space-between',marginBottom:2}}>
-                      <span style={{fontSize:12,color:G.sub}}>{nm}</span>
-                      <span style={{fontSize:13,fontWeight:700,color:cat.color}}>{val}</span>
+                  <div key={m.id} style={{marginBottom:8}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:2}}>
+                      <span style={{fontSize:12,color:G.sub,flex:1}}>{nm}</span>
+                      {tgt!=null&&(
+                        <span style={{fontSize:11,color:G.muted,marginRight:10}}>
+                          {t('target_planned')}: <strong>{tgt}</strong>
+                        </span>
+                      )}
+                      <span style={{fontSize:13,fontWeight:700,color:tgt!=null?(hit?G.green:G.red):cat.color}}>
+                        {val}{tgt!=null&&<span style={{fontSize:12,marginLeft:3}}>{hit?'✓':'✗'}</span>}
+                      </span>
                     </div>
                     <div style={{height:5,background:G.grayL,borderRadius:3,overflow:'hidden'}}>
-                      <div style={{height:'100%',borderRadius:3,width:Math.round((val/maxInCat)*100)+'%',background:cat.color}}/>
+                      <div style={{height:'100%',borderRadius:3,width:Math.round((val/maxInCat)*100)+'%',background:tgt!=null?(hit?G.green:G.red):cat.color}}/>
                     </div>
                   </div>
                 );
