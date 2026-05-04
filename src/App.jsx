@@ -3686,6 +3686,7 @@ export default function GrowInSport(){
   const [playerName, setPlayerName]=useState('Zawodnik');
   const [age,        setAge]       =useState(null);
   const [gameSetup,  setGameSetup] =useState(null);
+  const gameSetupRef = useRef(null);   // sync ref so ActiveGame always has setup
   const [editingGame,setEditingGame]=useState(null);
   const [analysingGame,setAnalysingGame]=useState(null);
   const [summaryGame,  setSummaryGame]  =useState(null);
@@ -3767,8 +3768,9 @@ export default function GrowInSport(){
             <div style={{flex:1,overflowY:'auto',display:'flex',flexDirection:'column'}}>
               {view==='dashboard' && <Dashboard    games={games} categories={categories} playerName={playerName} age={age} onStartGame={()=>setView('newGame')} onDonate={()=>window.open('https://ko-fi.com/luckyluk','_blank')} onFeedback={()=>setView('feedback')} onEdit={handleEdit} onAnalyse={handleAnalyse} onSummary={handleSummary} {...props}/>}
               {view==='games'     && <GamesList    games={games} categories={categories} onStartGame={()=>setView('newGame')} onDelete={deleteGame} onEdit={handleEdit} onAnalyse={handleAnalyse} onCompare={handleCompare} onSummary={handleSummary} {...props}/>}
-              {view==='newGame'   && <NewGameSetup categories={categories} onStart={s=>{setGameSetup(s);setView('activeGame');}} onBack={()=>setView('games')} {...props}/>}
+              {view==='newGame'   && <NewGameSetup categories={categories} onStart={s=>{gameSetupRef.current=s;setGameSetup(s);setView('activeGame');}} onBack={()=>setView('games')} {...props}/>}
               {view==='activeGame'&& gameSetup && <ActiveGame setup={gameSetup} categories={categories} onEnd={g=>{sbSaveGame(g);setGames(gs=>[...gs,g]);setGameSetup(null);setSummaryGame(g);setView('games');}}/>}
+              {view==='activeGame'&& !gameSetup && <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center'}}><button onClick={()=>setView('games')} style={{...btnSt(G.blue),padding:'14px 24px'}}>← Back to games</button></div>}
               {view==='progress'  && <ProgressView games={games} categories={categories} {...props}/>}
               {view==='settings'  && <SettingsPage categories={categories} setCategories={setCategories} playerName={playerName} setPlayerName={setPlayerName} age={age} setAge={setAge} username={username} onLogout={handleLogout} onDonate={()=>window.open('https://ko-fi.com/luckyluk','_blank')} onFeedback={()=>setView('feedback')} {...props}/>}
               {view==='feedback'  && <FeedbackScreen username={username} onClose={()=>setView('settings')} {...props}/>}
