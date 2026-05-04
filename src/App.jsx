@@ -369,6 +369,13 @@ const TR = {
   targets_vs_actual:{PL:'Cele vs. Wyniki',   EN:'Targets vs. Results',DE:'Ziele vs. Ergebnis',FR:'Objectifs vs. Résultats',IT:'Obiettivi vs. Risultati',ES:'Objetivos vs. Resultados'},
   all_targets_hit:  {PL:'Wszystkie cele osiągnięte! 🎉',EN:'All targets hit! 🎉',DE:'Alle Ziele erreicht! 🎉',FR:'Tous les objectifs atteints! 🎉',IT:'Tutti gli obiettivi raggiunti! 🎉',ES:'¡Todos los objetivos logrados! 🎉'},
 
+  // Voice
+  voice_on:         {PL:'Głos ON',            EN:'Voice ON',           DE:'Stimme AN',          FR:'Voix ON',           IT:'Voce ON',            ES:'Voz ON'            },
+  voice_off:        {PL:'Głos OFF',           EN:'Voice OFF',          DE:'Stimme AUS',         FR:'Voix OFF',          IT:'Voce OFF',           ES:'Voz OFF'           },
+  voice_hint:       {PL:'Mów nazwę statystyki', EN:'Say a stat name',   DE:'Statistikname sagen',FR:'Dites un nom de stat',IT:'Dì il nome di una stat',ES:'Di el nombre de una stat'},
+  voice_unsupported:{PL:'Przeglądarka nie obsługuje głosu',EN:'Voice not supported in this browser',DE:'Stimme nicht unterstützt',FR:'Voix non supportée',IT:'Voce non supportata',ES:'Voz no soportada'},
+  voice_heard:      {PL:'Usłyszano',          EN:'Heard',              DE:'Gehört',             FR:'Entendu',           IT:'Sentito',            ES:'Escuchado'         },
+
 };
 
 // ─── Translation helper ───────────────────────────────────────────
@@ -1113,6 +1120,44 @@ function NewGameSetup({categories,onStart,onBack,lang,setLang}){
   );
 }
 
+// ─── Voice keyword map builder ────────────────────────────────────
+// Builds a map from every word/alias → metricId for the active measures
+function buildVoiceMap(categories, lang){
+  const map = {};
+  const add = (phrase, id) => {
+    const key = phrase.toLowerCase().trim();
+    if(key) map[key] = id;
+  };
+  // Built-in aliases per language for common metrics
+  const ALIASES = {
+    goals:              {PL:['gol','gole','bramka','bramki'],    EN:['goal','goals'],          DE:['tor','tore'],         FR:['but','buts'],          IT:['gol','rete'],         ES:['gol','goles']},
+    passes_completed:   {PL:['podanie','podania','pas'],         EN:['pass','passes'],         DE:['pass','pässe'],       FR:['passe','passes'],      IT:['passaggio','passaggi'],ES:['pase','pases']},
+    assists:            {PL:['asysta','asysty'],                 EN:['assist','assists'],      DE:['vorlage','vorlagen'], FR:['passe décisive'],      IT:['assist'],             ES:['asistencia']},
+    shots_on_target:    {PL:['strzał','strzały','strzał celny'],EN:['shot','shots','on target'],DE:['schuss','schüsse'], FR:['tir','tirs'],          IT:['tiro','tiri'],        ES:['disparo','tiros']},
+    tackles_won:        {PL:['odbiór','odbior','odbiory'],      EN:['tackle','tackles'],      DE:['zweikampf'],          FR:['tacle','tacles'],      IT:['contrasto'],          ES:['entrada','entradas']},
+    interceptions:      {PL:['przechwyt','przechwyty'],         EN:['interception','interceptions'],DE:['abfangen'],     FR:['interception'],        IT:['intercettazione'],    ES:['intercepción']},
+    dribbles_completed: {PL:['drybling','dryble'],              EN:['dribble','dribbles'],    DE:['dribbling'],          FR:['dribble','dribbles'],  IT:['dribbling'],          ES:['regate','regates']},
+    yellow_cards:       {PL:['żółta','żółte','kartka'],         EN:['yellow','yellow card'],  DE:['gelb','gelbe karte'], FR:['carton jaune'],        IT:['giallo','cartellino'],ES:['amarilla','tarjeta amarilla']},
+    fouls:              {PL:['faul','faule','przewinienie'],     EN:['foul','fouls'],          DE:['foul','fouls'],       FR:['faute','fautes'],      IT:['fallo','falli'],      ES:['falta','faltas']},
+    headers_won:        {PL:['główka','główki'],                 EN:['header','headers'],      DE:['kopfball'],           FR:['tête','têtes'],        IT:['colpo di testa'],     ES:['cabezazo']},
+    duels_won:          {PL:['pojedynek','duel'],               EN:['duel','duels'],          DE:['duell'],              FR:['duel','duels'],        IT:['duello'],             ES:['duelo']},
+    touches:            {PL:['dotknięcie','kontakt'],           EN:['touch','touches'],       DE:['ballkontakt'],        FR:['touche','contact'],    IT:['tocco'],              ES:['toque']},
+    clearances:         {PL:['wybicie','wybicia'],              EN:['clear','clearance'],     DE:['klärung'],            FR:['dégagement'],          IT:['rinvio'],             ES:['despeje']},
+    blocks:             {PL:['blok','bloki'],                   EN:['block','blocks'],        DE:['block','blocks'],     FR:['blocage'],             IT:['blocco'],             ES:['bloqueo']},
+  };
+  for(const cat of categories){
+    for(const m of cat.measures.filter(x=>x.active)){
+      // Add the display name itself
+      const displayName = m.custom ? m.name : (m.nameKey||m.name||'');
+      add(displayName, m.id);
+      // Add known aliases
+      const aliasLang = ALIASES[m.id]?.[lang] || ALIASES[m.id]?.EN || [];
+      for(const alias of aliasLang) add(alias, m.id);
+    }
+  }
+  return map;
+}
+
 function ActiveGame({setup,categories,onEnd}){
   const t=useT();
   const periods       = setup.periods||1;
@@ -1139,6 +1184,11 @@ function ActiveGame({setup,categories,onEnd}){
   const [subs,          setSubs]         = useState([]);
   const [showPosPick,   setShowPosPick]  = useState(false);
   const [position,      setPosition]     = useState(setup.position||9);
+  // Voice recognition
+  const [voiceOn,       setVoiceOn]      = useState(false);
+  const [voiceSupported]=useState(()=>'SpeechRecognition' in window||'webkitSpeechRecognition' in window);
+  const [voiceFlash,    setVoiceFlash]   = useState(null); // {metricId, word} for flash confirmation
+  const recogRef = useRef(null);
   const [endScreen,     setEndScreen]    = useState(false);
   const [overrideMins,  setOverrideMins] = useState(null);
 
@@ -1150,6 +1200,51 @@ function ActiveGame({setup,categories,onEnd}){
 
   const activeCats=categories.filter(c=>c.measures.some(m=>m.active));
   useEffect(()=>{ if(!activeCat&&activeCats.length) setActiveCat(activeCats[0].id); },[]);
+
+  // Voice recognition effect
+  useEffect(()=>{
+    if(!voiceOn||!voiceSupported||timerState!=='running') return;
+    const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+    const recog=new SpeechRecognition();
+    recogRef.current=recog;
+    const langMap={PL:'pl-PL',EN:'en-GB',DE:'de-DE',FR:'fr-FR',IT:'it-IT',ES:'es-ES'};
+    recog.lang=langMap[lang]||'en-GB';
+    recog.continuous=true;
+    recog.interimResults=false;
+    recog.maxAlternatives=3;
+
+    recog.onresult=(e)=>{
+      const voiceMap=buildVoiceMap(categories, lang);
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        for(let j=0;j<e.results[i].length;j++){
+          const word=e.results[i][j].transcript.toLowerCase().trim();
+          // Check each word/phrase in the transcript
+          const words=word.split(/\s+/);
+          let matched=false;
+          // Try progressively shorter phrases (up to 3 words)
+          for(let len=Math.min(3,words.length);len>=1;len--){
+            for(let start=0;start<=words.length-len;start++){
+              const phrase=words.slice(start,start+len).join(' ');
+              if(voiceMap[phrase]){
+                const mId=voiceMap[phrase];
+                inc(mId);
+                setVoiceFlash({metricId:mId,word:phrase});
+                setTimeout(()=>setVoiceFlash(null),1500);
+                matched=true;
+                break;
+              }
+            }
+            if(matched) break;
+          }
+        }
+      }
+    };
+
+    recog.onerror=(e)=>{ if(e.error!=='no-speech') console.error('Speech error:',e.error); };
+    recog.onend=()=>{ if(voiceOn&&timerState==='running') recog.start(); }; // auto-restart
+    recog.start();
+    return()=>{ recog.onend=null; recog.stop(); };
+  },[voiceOn, timerState, lang, categories]);
 
   // Clean up timer on unmount
   useEffect(()=>()=>{ if(timerRef.current) clearInterval(timerRef.current); },[]);
@@ -1466,6 +1561,19 @@ function ActiveGame({setup,categories,onEnd}){
               {onPitch?<>🟢 {t("sub_off")}</>:<>🔴 {t("sub_on")}</>}
             </button>
 
+            {/* Mic / Voice */}
+            {voiceSupported&&(
+              <button onClick={()=>setVoiceOn(v=>!v)} style={{
+                flex:1,padding:"8px 6px",
+                background:voiceOn?"rgba(198,40,40,.5)":"rgba(255,255,255,.15)",
+                border:`2px solid ${voiceOn?"rgba(198,40,40,.8)":"rgba(255,255,255,.3)"}`,
+                borderRadius:10,color:"white",cursor:"pointer",fontFamily:"inherit",
+                display:"flex",alignItems:"center",justifyContent:"center",gap:4,fontWeight:700,fontSize:12,
+              }}>
+                {voiceOn?<MicOff size={14}/>:<Mic size={14}/>}
+                {voiceOn?t('voice_on'):t('voice_off')}
+              </button>
+            )}
             {/* Pause / Resume */}
             {isRunning?(
               <button onClick={handlePause} style={{flex:1,padding:"8px 6px",background:"rgba(186,117,23,.4)",border:"2px solid rgba(186,117,23,.8)",borderRadius:10,color:"white",cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:5,fontWeight:700,fontSize:12}}>
@@ -1532,6 +1640,26 @@ function ActiveGame({setup,categories,onEnd}){
         })}
       </div>
 
+      {/* Voice flash — shows what word was heard and which metric it triggered */}
+      {voiceFlash&&(()=>{
+        let mName=voiceFlash.metricId, mColor=G.green;
+        for(const c of categories){const m=c.measures.find(m=>m.id===voiceFlash.metricId);if(m){mName=m.custom?m.name:t(m.nameKey);mColor=c.color;break;}}
+        return(
+          <div style={{position:"absolute",top:80,left:0,right:0,display:"flex",justifyContent:"center",pointerEvents:"none",zIndex:10}}>
+            <div style={{background:"rgba(0,0,0,.75)",color:"white",borderRadius:16,padding:"8px 20px",fontSize:13,fontWeight:700,display:"flex",alignItems:"center",gap:8}}>
+              <span style={{color:mColor}}>+1 {mName}</span>
+              <span style={{opacity:.6,fontSize:11}}>"{voiceFlash.word}"</span>
+            </div>
+          </div>
+        );
+      })()}
+      {voiceOn&&timerState==='running'&&(
+        <div style={{position:"absolute",top:140,left:0,right:0,textAlign:"center",pointerEvents:"none"}}>
+          <span style={{background:"rgba(198,40,40,.7)",color:"white",borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:700,display:"inline-flex",alignItems:"center",gap:4}}>
+            <Mic size={10}/> {t('voice_hint')}
+          </span>
+        </div>
+      )}
       {!onPitch&&isRunning&&(
         <div style={{position:"absolute",bottom:10,left:0,right:0,textAlign:"center",pointerEvents:"none"}}>
           <span style={{background:"rgba(0,0,0,.6)",color:"white",borderRadius:20,padding:"4px 14px",fontSize:12,fontWeight:700}}>⏸ {t("benched")}</span>
