@@ -44,10 +44,11 @@ export async function loadProfile() {
 export async function saveProfile(updates) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return
-  const { error } = await supabase.from('profiles').upsert({
-    id: user.id,
-    ...updates,
-  })
+  // Use update (not upsert) so we don't need to re-supply username
+  const { error } = await supabase
+    .from('profiles')
+    .update(updates)
+    .eq('id', user.id)
   if (error) console.error('saveProfile error:', error)
 }
 
