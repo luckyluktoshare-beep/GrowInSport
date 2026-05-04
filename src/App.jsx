@@ -3265,3 +3265,549 @@ function GameEditScreen({game, categories, onSave, onBack, lang, setLang}){
   const activeCats=categories.filter(c=>c.measures.some(m=>m.active));
 
   const handleSave=()=>{
+    onSave({
+      ...game,
+      name:name.trim(), date, type, minutesPlayed:minsPlayed, position, periods,
+      metrics:sumMetrics(periodMetrics),
+      periodMetrics,
+    });
+  };
+
+  return(
+    <div style={{display:'flex',flexDirection:'column',height:'100%'}}>
+      <AppHeader title={t('edit_game')} subtitle={game.name||shortDt(game.date)} onBack={onBack} lang={lang} setLang={setLang}/>
+
+      {/* Tab bar */}
+      <div style={{display:'flex',background:G.card,borderBottom:`1px solid ${G.border}`,flexShrink:0}}>
+        {[['stats',t('edit_stats')],['details',t('edit_meta')]].map(([k,l])=>(
+          <button key={k} onClick={()=>setActiveTab(k)} style={{
+            flex:1,padding:'12px',border:'none',background:'none',
+            borderBottom:`3px solid ${activeTab===k?G.blue:'transparent'}`,
+            color:activeTab===k?G.blue:G.sub,fontWeight:activeTab===k?700:400,
+            fontSize:14,cursor:'pointer',fontFamily:'inherit',
+          }}>{l}</button>
+        ))}
+      </div>
+
+      <div style={{flex:1,overflowY:'auto',padding:'16px 16px 100px'}}>
+
+        {/* ── STATS TAB ── */}
+        {activeTab==='stats'&&(
+          <>
+            {/* Period selector */}
+            {periods>1&&(
+              <div style={{display:'flex',overflowX:'auto',gap:6,marginBottom:14,scrollbarWidth:'none',paddingBottom:2}}>
+                {Array.from({length:periods},(_,i)=>(
+                  <button key={i} onClick={()=>setViewPeriod(i)} style={{
+                    padding:'6px 14px',border:`2px solid ${viewPeriod===i?G.orange:G.border}`,
+                    borderRadius:20,background:viewPeriod===i?G.orangeBg:G.card,
+                    color:viewPeriod===i?G.orange:G.sub,fontWeight:700,fontSize:13,
+                    cursor:'pointer',whiteSpace:'nowrap',fontFamily:'inherit',
+                  }}>{t(periodKey(periods,i+1),{n:i+1})}</button>
+                ))}
+                <button onClick={()=>setViewPeriod('flat')} style={{
+                  padding:'6px 14px',border:`2px solid ${viewPeriod==='flat'?G.blue:G.border}`,
+                  borderRadius:20,background:viewPeriod==='flat'?G.blueBg:G.card,
+                  color:viewPeriod==='flat'?G.blue:G.sub,fontWeight:700,fontSize:13,
+                  cursor:'pointer',whiteSpace:'nowrap',fontFamily:'inherit',
+                }}>{t('total_tab')}</button>
+              </div>
+            )}
+
+            {/* Readonly total banner when viewing "total" tab in multi-period */}
+            {viewPeriod==='flat'&&periods>1&&(
+              <div style={{...card(),marginBottom:12,background:G.grayL}}>
+                <div style={{fontSize:12,color:G.sub,marginBottom:8,fontWeight:600}}>{t('total_tab')} — {t('edit_stats').toLowerCase()}</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                  {Object.entries(totalMetrics).filter(([,v])=>v>0).map(([id,v])=>{
+                    let nm=id,col=G.blue;
+                    for(const c of categories){const m=c.measures.find(m=>m.id===id);if(m){nm=m.custom?m.name:t(m.nameKey);col=c.color;break;}}
+                    return <span key={id} style={pill(col+'18',col)}>{nm}: {v}</span>;
+                  })}
+                </div>
+                <div style={{fontSize:11,color:G.muted,marginTop:8}}>↓ Edit individual periods below</div>
+              </div>
+            )}
+
+            {/* Category tabs */}
+            {(viewPeriod!=='flat'||periods===1)&&(
+              <>
+                <div style={{display:'flex',overflowX:'auto',gap:6,marginBottom:12,scrollbarWidth:'none'}}>
+                  {activeCats.map(c=>{const cn=c.custom?c.name:t(c.nameKey);return(
+                    <button key={c.id} onClick={()=>setActiveCat(c.id)} style={{
+                      padding:'5px 12px',border:`2px solid ${activeCat===c.id?c.color:G.border}`,
+                      borderRadius:16,background:activeCat===c.id?c.color:G.card,
+                      color:activeCat===c.id?'white':G.sub,fontWeight:activeCat===c.id?700:400,
+                      fontSize:12,cursor:'pointer',whiteSpace:'nowrap',fontFamily:'inherit',
+                    }}>{cn}</button>
+                  );})}
+                </div>
+
+                {/* Measure edit grid */}
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+                  {currentCat?.measures.filter(m=>m.active).map(m=>{
+                    const pid=periods===1?0:editPid;
+                    const count=(periodMetrics[pid]||{})[m.id]||0;
+                    const mName=m.custom?m.name:t(m.nameKey);
+                    const totalCount=totalMetrics[m.id]||0;
+                    return(
+                      <div key={m.id} style={{background:G.card,borderRadius:14,border:`2px solid ${count>0?currentCat.color:G.border}`,padding:'12px 10px',display:'flex',flexDirection:'column',alignItems:'center',gap:6}}>
+                        <div style={{fontSize:11,fontWeight:600,color:G.sub,textAlign:'center',lineHeight:1.3}}>{mName}</div>
+                        <div style={{fontSize:44,fontWeight:900,lineHeight:1,color:count>0?currentCat.color:G.text}}>{count}</div>
+                        {periods>1&&<div style={{fontSize:10,color:G.muted}}>{totalCount} {t('period_total')}</div>}
+                        <div style={{display:'flex',gap:5,width:'100%'}}>
+                          <button onClick={()=>dec(pid,m.id)} style={{flex:1,padding:'8px 0',background:G.grayL,border:'none',borderRadius:8,cursor:'pointer',fontWeight:700,fontSize:18,color:G.sub,fontFamily:'inherit'}}>−</button>
+                          <button onClick={()=>inc(pid,m.id)} style={{flex:2,padding:'8px 0',background:currentCat.color,border:'none',borderRadius:8,cursor:'pointer',fontWeight:900,fontSize:18,color:'white',fontFamily:'inherit'}}>+</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </>
+        )}
+
+        {/* ── DETAILS TAB ── */}
+        {activeTab==='details'&&(
+          <>
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:12,fontWeight:700,color:G.sub,textTransform:'uppercase',letterSpacing:.5,marginBottom:8}}>{t('game_name_opt')}</div>
+              <input value={name} onChange={e=>setName(e.target.value)} placeholder={t('game_name_ph')} style={inp()}/>
+            </div>
+
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:12,fontWeight:700,color:G.sub,textTransform:'uppercase',letterSpacing:.5,marginBottom:8}}>{t('type_label')}</div>
+              <div style={{display:'flex',gap:8}}>
+                {GAME_TYPE_DEFS.map(td=>(
+                  <button key={td.id} onClick={()=>setType(td.id)} style={{flex:1,padding:'11px 4px',border:`2px solid ${type===td.id?td.color:G.border}`,borderRadius:12,background:type===td.id?td.color+'18':G.card,color:type===td.id?td.color:G.sub,fontWeight:700,fontSize:12,cursor:'pointer',fontFamily:'inherit'}}>{t(td.labelKey)}</button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:12,fontWeight:700,color:G.sub,textTransform:'uppercase',letterSpacing:.5,marginBottom:8}}>{t('date_label')}</div>
+              <input type="date" value={date} onChange={e=>setDate(e.target.value)} style={inp()}/>
+            </div>
+
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:12,fontWeight:700,color:G.sub,textTransform:'uppercase',letterSpacing:.5,marginBottom:8}}>{t('min_played')}</div>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <button onClick={()=>setMinsPlayed(m=>Math.max(0,m-1))} style={{...btnSt(G.grayL,G.sub),padding:'10px 20px'}}><Minus size={16}/></button>
+                <span style={{fontSize:32,fontWeight:900,color:G.blue,flex:1,textAlign:'center'}}>{minsPlayed}</span>
+                <button onClick={()=>setMinsPlayed(m=>m+1)} style={{...btnSt(G.grayL,G.sub),padding:'10px 20px'}}><Plus size={16}/></button>
+              </div>
+            </div>
+
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:12,fontWeight:700,color:G.sub,textTransform:'uppercase',letterSpacing:.5,marginBottom:8}}>{t('position_label')}</div>
+              <button onClick={()=>setShowPos(s=>!s)} style={{width:'100%',padding:'12px',border:`2px solid ${G.border}`,borderRadius:12,background:G.card,cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',gap:12}}>
+                <span style={{background:G.orange,color:'white',borderRadius:7,width:32,height:32,display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:900,flexShrink:0}}>{pos.num}</span>
+                <div style={{textAlign:'left'}}>
+                  <div style={{fontSize:14,fontWeight:700,color:G.text}}>{pos.code} — {t(pos.nameKey)}</div>
+                  <div style={{fontSize:11,color:G.sub}}>{t('tap_to_change')}</div>
+                </div>
+                <ChevronDown size={16} color={G.muted} style={{marginLeft:'auto'}}/>
+              </button>
+              {showPos&&(
+                <div style={{...card(),marginTop:8,padding:'14px'}}>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                    {POSITIONS.map(p=>(
+                      <button key={p.num} onClick={()=>{setPosition(p.num);setShowPos(false);}} style={{display:'flex',alignItems:'center',gap:5,padding:'5px 9px',border:`2px solid ${position===p.num?G.orange:G.border}`,borderRadius:9,background:position===p.num?G.orangeBg:G.card,cursor:'pointer',fontFamily:'inherit'}}>
+                        <span style={{background:position===p.num?G.orange:G.muted,color:'white',borderRadius:4,width:18,height:18,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:900}}>{p.num}</span>
+                        <span style={{fontSize:11,fontWeight:700,color:G.text}}>{p.code}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Sticky save bar */}
+      <div style={{position:'fixed',bottom:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:520,background:G.card,borderTop:`1px solid ${G.border}`,padding:'12px 16px',zIndex:50}}>
+        <button onClick={handleSave} style={{...btnSt(G.green),width:'100%',padding:'15px',fontSize:16,borderRadius:12,boxShadow:'0 4px 12px rgba(45,139,45,0.25)'}}>
+          <Check size={18}/> {t('save_changes')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Export Screen ────────────────────────────────────────────────
+function ExportScreen({games,categories,playerName,onBack,lang,setLang}){
+  const t=useT();
+  const [status,   setStatus]   = useState('');
+  const [selected, setSelected] = useState(new Set());
+  const [selMode,  setSelMode]  = useState(false);
+
+  const sorted = [...games].sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const exportSet = selMode && selected.size>0
+    ? sorted.filter(g=>selected.has(g.id))
+    : sorted;
+
+  const toggleSel = id => setSelected(s=>{const n=new Set(s);n.has(id)?n.delete(id):n.add(id);return n;});
+  const selAll    = ()  => setSelected(new Set(sorted.map(g=>g.id)));
+  const selNone   = ()  => setSelected(new Set());
+
+  const totalEvents = exportSet.reduce((s,g)=>s+(g.events?.length||0),0);
+
+  const measureName = id => {
+    for(const c of categories){const m=c.measures.find(m=>m.id===id);if(m) return m.custom?m.name:t(m.nameKey);}
+    return id;
+  };
+  const allMetrics = [...new Set(exportSet.flatMap(g=>Object.keys(g.metrics||{})))];
+
+  const escCSV = v => {
+    if(v==null) return '';
+    const s=String(v);
+    return s.includes(',')||s.includes('"')||s.includes('\n')?`"${s.replace(/"/g,'""')}"`  :s;
+  };
+  const rowCSV = (...cols) => cols.map(escCSV).join(',')+'\n';
+
+  const downloadFile = (content,filename,mime='text/csv') => {
+    const blob=new Blob([content],{type:mime});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=filename;a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const stamp = ()=>new Date().toISOString().slice(0,10);
+  const safeName = playerName.replace(/\s+/g,'_');
+
+  const exportEvents = () => {
+    if(!exportSet.length){setStatus(t('export_no_data'));return;}
+    let csv=rowCSV('game_id','date','game_name','type','position','total_mins','periods','event_id','metric_id','metric_name','period','elapsed_ms','minute','second');
+    for(const g of exportSet){
+      const evs=g.events||[];
+      if(!evs.length){
+        for(const[mId,cnt] of Object.entries(g.metrics||{}))
+          if(cnt>0) csv+=rowCSV(g.id,g.date,g.name||'',g.type,g.position||'',g.minutesPlayed,g.periods||1,'',mId,measureName(mId),'','','','');
+      } else {
+        for(const ev of evs){
+          csv+=rowCSV(g.id,g.date,g.name||'',g.type,g.position||'',g.minutesPlayed,g.periods||1,
+            ev.id,ev.metricId,measureName(ev.metricId),ev.period||1,ev.elapsedMs,
+            Math.floor(ev.elapsedMs/60000),Math.floor((ev.elapsedMs%60000)/1000));
+        }
+      }
+    }
+    downloadFile(csv,`growinsport_events_${safeName}_${stamp()}.csv`);
+    setStatus(`${t('export_done')} ✓ ${exportSet.length} games · ${totalEvents} events`);
+  };
+
+  const exportSummary = () => {
+    if(!exportSet.length){setStatus(t('export_no_data'));return;}
+    const header=rowCSV('game_id','date','game_name','type','position','position_code','total_mins','minutes_played','periods',...allMetrics.map(id=>measureName(id)));
+    let csv=header;
+    for(const g of [...exportSet].sort((a,b)=>new Date(a.date)-new Date(b.date))){
+      const pos=g.position?posOf(g.position):null;
+      csv+=rowCSV(g.id,g.date,g.name||'',g.type,g.position||'',pos?pos.code:'',
+        g.totalMinutes||g.minutesPlayed,g.minutesPlayed,g.periods||1,
+        ...allMetrics.map(id=>g.metrics?.[id]||0));
+    }
+    downloadFile(csv,`growinsport_summary_${safeName}_${stamp()}.csv`);
+    setStatus(`${t('export_done')} ✓ ${exportSet.length} games`);
+  };
+
+  const exportJSON = () => {
+    if(!exportSet.length){setStatus(t('export_no_data'));return;}
+    const payload={
+      exportDate:new Date().toISOString(), player:playerName,
+      totalGames:exportSet.length, totalEvents,
+      games:[...exportSet].sort((a,b)=>new Date(a.date)-new Date(b.date)).map(g=>({
+        ...g,
+        typeName:GAME_TYPE_DEFS.find(td=>td.id===g.type)?.id||g.type,
+        positionName:g.position?posOf(g.position).name:'',
+        metricsNamed:Object.fromEntries(Object.entries(g.metrics||{}).map(([id,v])=>[measureName(id),v])),
+        events:(g.events||[]).map(ev=>({...ev,metricName:measureName(ev.metricId),
+          minute:Math.floor(ev.elapsedMs/60000),second:Math.floor((ev.elapsedMs%60000)/1000)})),
+      })),
+    };
+    downloadFile(JSON.stringify(payload,null,2),`growinsport_full_${safeName}_${stamp()}.json`,'application/json');
+    setStatus(`${t('export_done')} ✓ JSON · ${exportSet.length} games`);
+  };
+
+  return(
+    <div style={{display:'flex',flexDirection:'column',height:'100%'}}>
+      <AppHeader title={t('export_title')} subtitle={t('export_sub')} onBack={onBack} lang={lang} setLang={setLang}/>
+      <div style={{flex:1,overflowY:'auto',padding:'12px 12px 40px'}}>
+
+        {/* ── SCOPE selector ── */}
+        <div style={{...card(),marginBottom:14}}>
+          <div style={{display:'flex',background:G.grayL,borderRadius:10,padding:3,marginBottom:selMode?12:0}}>
+            <button onClick={()=>{setSelMode(false);setSelected(new Set());setStatus('');}}
+              style={{flex:1,padding:'8px 4px',border:'none',borderRadius:8,fontFamily:'inherit',fontSize:13,fontWeight:700,cursor:'pointer',
+                background:!selMode?G.card:'transparent',color:!selMode?G.blue:G.sub,
+                boxShadow:!selMode?'0 1px 4px rgba(0,0,0,.08)':'none'}}>
+              All {games.length} games
+            </button>
+            <button onClick={()=>{setSelMode(true);setStatus('');}}
+              style={{flex:1,padding:'8px 4px',border:'none',borderRadius:8,fontFamily:'inherit',fontSize:13,fontWeight:700,cursor:'pointer',
+                background:selMode?G.card:'transparent',color:selMode?G.blue:G.sub,
+                boxShadow:selMode?'0 1px 4px rgba(0,0,0,.08)':'none'}}>
+              Select games
+            </button>
+          </div>
+
+          {selMode&&(
+            <>
+              {/* Select all / none */}
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+                <span style={{fontSize:13,fontWeight:700,color:G.text}}>
+                  {selected.size} of {games.length} selected
+                </span>
+                <div style={{display:'flex',gap:8}}>
+                  <button onClick={selAll}  style={{fontSize:12,color:G.blueL,background:'none',border:'none',cursor:'pointer',fontFamily:'inherit',fontWeight:600}}>All</button>
+                  <button onClick={selNone} style={{fontSize:12,color:G.sub,  background:'none',border:'none',cursor:'pointer',fontFamily:'inherit',fontWeight:600}}>None</button>
+                </div>
+              </div>
+              {/* Game list */}
+              <div style={{maxHeight:240,overflowY:'auto',borderRadius:8,border:`1px solid ${G.border}`}}>
+                {sorted.map((g,i)=>{
+                  const isSel=selected.has(g.id);
+                  const typeDef=gameTypeDef(g.type);
+                  const pos=g.position?posOf(g.position):null;
+                  return(
+                    <div key={g.id} onClick={()=>toggleSel(g.id)} style={{
+                      display:'flex',alignItems:'center',gap:10,
+                      padding:'10px 12px',cursor:'pointer',
+                      background:isSel?G.blueBg:'white',
+                      borderBottom:i<sorted.length-1?`1px solid ${G.border}`:'none',
+                    }}>
+                      <div style={{width:22,height:22,borderRadius:5,border:`2px solid ${isSel?G.blue:G.border}`,
+                        background:isSel?G.blue:'white',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                        {isSel&&<Check size={13} color="white"/>}
+                      </div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{display:'flex',alignItems:'center',gap:6}}>
+                          <span style={pill(typeDef.color+'22',typeDef.color,{fontSize:10,padding:'2px 6px'})}>{t(typeDef.labelKey)}</span>
+                          {g.name&&<span style={{fontSize:13,fontWeight:700,color:G.text,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:120}}>{g.name}</span>}
+                          <span style={{fontSize:11,color:G.sub,flexShrink:0}}>{shortDt(g.date)}</span>
+                        </div>
+                        {pos&&<div style={{fontSize:10,color:G.muted,marginTop:1}}>#{pos.num} {pos.code} · {g.minutesPlayed}min</div>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* ── Stats for current export set ── */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14}}>
+          <div style={{...card(),padding:'12px',textAlign:'center'}}>
+            <div style={{fontSize:26,fontWeight:900,color:G.blue}}>{exportSet.length}</div>
+            <div style={{fontSize:11,color:G.sub,marginTop:2}}>{t('games_count')}{selMode&&selected.size>0?' selected':''}</div>
+          </div>
+          <div style={{...card(),padding:'12px',textAlign:'center'}}>
+            <div style={{fontSize:26,fontWeight:900,color:G.green}}>{totalEvents}</div>
+            <div style={{fontSize:11,color:G.sub,marginTop:2}}>events</div>
+          </div>
+        </div>
+
+        {/* ── Export buttons ── */}
+        {(selMode?selected.size>0:true)?[
+          {icon:'📋',title:t('export_events'),  desc:t('export_events_desc'),  btn:t('export_btn'), fn:exportEvents, color:G.blue},
+          {icon:'📊',title:t('export_summary'), desc:t('export_summary_desc'), btn:t('export_btn'), fn:exportSummary,color:G.green},
+          {icon:'🗂️',title:'Full JSON',          desc:'Complete data with all events & enriched metadata',btn:t('export_json'),fn:exportJSON,color:G.orange},
+        ].map(({icon,title,desc,btn,fn,color})=>(
+          <div key={title} style={{...card(),marginBottom:10}}>
+            <div style={{display:'flex',alignItems:'flex-start',gap:12,marginBottom:12}}>
+              <span style={{fontSize:26,flexShrink:0}}>{icon}</span>
+              <div style={{flex:1}}>
+                <div style={{fontSize:14,fontWeight:700,color:G.text,marginBottom:3}}>{title}</div>
+                <div style={{fontSize:12,color:G.sub,lineHeight:1.5}}>{desc}</div>
+              </div>
+            </div>
+            <button onClick={()=>{setStatus('');fn();}}
+              style={{...btnSt(color),width:'100%',padding:'12px',fontSize:14,borderRadius:12}}>
+              ⬇ {btn}
+            </button>
+          </div>
+        )):(
+          <div style={{...card(),textAlign:'center',padding:'24px',color:G.muted,fontSize:14}}>
+            Select at least one game above
+          </div>
+        )}
+
+        {status&&(
+          <div style={{...card(),marginTop:4,background:G.greenBg,border:`1px solid ${G.green}44`,textAlign:'center',padding:'10px',fontSize:13,fontWeight:600,color:G.green}}>
+            {status}
+          </div>
+        )}
+
+        <div style={{...card(),marginTop:14,background:G.grayL,border:'none'}}>
+          <div style={{fontSize:11,fontWeight:700,color:G.sub,marginBottom:6}}>FORMAT NOTES</div>
+          <div style={{fontSize:11,color:G.sub,lineHeight:1.8}}>
+            • UTF-8 CSV — Excel, Google Sheets, Python/pandas, R<br/>
+            • Events CSV: one row per tap with timestamp &amp; period<br/>
+            • Summary CSV: one row per game, all metric columns<br/>
+            • JSON: full nested structure with human-readable names
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Bottom Nav ───────────────────────────────────────────────────
+function BottomNav({view,setView}){
+  const t=useT();
+  const tabs=[
+    ['dashboard','nav_home',Home],
+    ['games','nav_games',List],
+    ['progress','nav_progress',TrendingUp],
+    ['export','export_tab',Download],
+    ['settings','nav_settings',Settings],
+  ];
+  return(
+    <nav style={{position:'fixed',bottom:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:520,background:G.card,borderTop:`1px solid ${G.border}`,display:'flex',zIndex:100}}>
+      {tabs.map(([id,key,Icon])=>{
+        const active=view===id;
+        return(<button key={id} onClick={()=>setView(id)} style={{flex:1,padding:'10px 0 8px',border:'none',background:'none',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:3,color:active?G.green:G.muted}}>
+          <Icon size={20}/><span style={{fontSize:9,fontWeight:active?700:400,fontFamily:'inherit'}}>{t(key)}</span>
+        </button>);
+      })}
+    </nav>
+  );
+}
+
+// ─── App Root ─────────────────────────────────────────────────────
+export default function GrowInSport(){
+  const [username,   setUsername]  =useState(null);
+  const [lang,       setLang]      =useState('PL');
+  const [view,       setView]      =useState('dashboard');
+  const [games,      setGames]     =useState([]);
+  const [categories, setCategories]=useState(DEFAULT_CATS);
+  const [playerName, setPlayerName]=useState('Zawodnik');
+  const [age,        setAge]       =useState(null);
+  const [gameSetup,  setGameSetup] =useState(null);
+  const [editingGame,setEditingGame]=useState(null);
+  const [analysingGame,setAnalysingGame]=useState(null);
+  const [summaryGame,  setSummaryGame]  =useState(null);
+  const [comparisonConfig,setComparisonConfig]=useState(null);
+  const [booting,    setBooting]   =useState(true);
+
+  useEffect(()=>{
+    getSession().then(async session=>{
+      if(session?.user){
+        try{
+          const [profile, games] = await Promise.all([loadProfile(), sbLoadGames()]);
+          if(profile){
+            setUsername(profile.username);
+            setPlayerName(profile.player_name||'');
+            if(profile.categories) setCategories(profile.categories);
+            if(profile.age!=null)  setAge(profile.age);
+            if(profile.lang)       setLang(profile.lang);
+          }
+          setGames((games||[]).map(migrateGame));
+        }catch(e){ console.error('Session restore error:',e); }
+      }
+      setBooting(false);
+    });
+  },[]);
+
+  const saveTimerRef = useRef(null);
+  useEffect(()=>{
+    if(!username||booting) return;
+    if(saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(()=>{
+      saveProfile({player_name:playerName, age, lang, categories});
+    }, 800);
+    return ()=>{ if(saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+  },[playerName,age,lang,categories,username,booting]);
+
+  const handleLogin=async u=>{
+    try{
+      const [profile, games] = await Promise.all([loadProfile(), sbLoadGames()]);
+      if(profile){
+        setPlayerName(profile.player_name||'');
+        if(profile.categories) setCategories(profile.categories);
+        if(profile.age!=null)  setAge(profile.age);
+        if(profile.lang)       setLang(profile.lang);
+      }
+      setGames((games||[]).map(migrateGame));
+    }catch(e){ console.error('Login load error:',e); }
+    setUsername(u);setView('dashboard');
+  };
+  const handleLogout=async()=>{await sbSignOut();setUsername(null);setGames([]);setCategories(DEFAULT_CATS);setPlayerName('Zawodnik');setAge(null);setLang('PL');setView('dashboard');};
+  const deleteGame = id => {
+    sbDeleteGame(id);
+    setGames(gs=>gs.filter(g=>g.id!==id));
+  };
+  const handleEdit    = game => { setEditingGame(game); setView('editGame'); };
+  const handleAnalyse  = game   => { setAnalysingGame(game);    setView('gameDetail');    };
+  const handleSummary  = game   => { setSummaryGame(game); };
+  const handleCompare  = config => { setComparisonConfig(config); setView('gameCompare'); };
+  const showNav=!['newGame','activeGame','feedback','editGame','gameDetail','gameCompare'].includes(view);
+
+  const ST=`@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;900&display=swap');*{box-sizing:border-box;margin:0;padding:0;}`;
+
+  const props={lang,setLang};
+
+  if(booting) return(
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100vh',background:G.blue,fontFamily:"'Nunito',system-ui,sans-serif",gap:16}}>
+      <style>{ST}</style>
+      <GISLogo size={88} dark/>
+      <div style={{fontSize:22,fontWeight:900,color:'white',letterSpacing:-0.3}}>Grow In Sport</div>
+    </div>
+  );
+
+  return(
+    <LangCtx.Provider value={lang}>
+      <div style={{fontFamily:"'Nunito',system-ui,sans-serif",background:G.bg,height:'100vh',display:'flex',flexDirection:'column',maxWidth:520,margin:'0 auto',overflow:'hidden',position:'relative'}}>
+        <style>{ST}</style>
+        {!username&&<AuthScreen onLogin={handleLogin} lang={lang} setLang={setLang}/>}
+        {username&&(
+          <>
+            <div style={{flex:1,overflowY:'auto',display:'flex',flexDirection:'column'}}>
+              {view==='dashboard' && <Dashboard    games={games} categories={categories} playerName={playerName} age={age} onStartGame={()=>setView('newGame')} onDonate={()=>window.open('https://ko-fi.com/luckyluk','_blank')} onFeedback={()=>setView('feedback')} onEdit={handleEdit} onAnalyse={handleAnalyse} onSummary={handleSummary} {...props}/>}
+              {view==='games'     && <GamesList    games={games} categories={categories} onStartGame={()=>setView('newGame')} onDelete={deleteGame} onEdit={handleEdit} onAnalyse={handleAnalyse} onCompare={handleCompare} onSummary={handleSummary} {...props}/>}
+              {view==='newGame'   && <NewGameSetup categories={categories} onStart={s=>{setGameSetup(s);setView('activeGame');}} onBack={()=>setView('games')} {...props}/>}
+              {view==='activeGame'&& gameSetup && <ActiveGame setup={gameSetup} categories={categories} onEnd={g=>{sbSaveGame(g);setGames(gs=>[...gs,g]);setGameSetup(null);setSummaryGame(g);setView('games');}}/>}
+              {view==='progress'  && <ProgressView games={games} categories={categories} {...props}/>}
+              {view==='settings'  && <SettingsPage categories={categories} setCategories={setCategories} playerName={playerName} setPlayerName={setPlayerName} age={age} setAge={setAge} username={username} onLogout={handleLogout} onDonate={()=>window.open('https://ko-fi.com/luckyluk','_blank')} onFeedback={()=>setView('feedback')} {...props}/>}
+              {view==='feedback'  && <FeedbackScreen username={username} onClose={()=>setView('settings')} {...props}/>}
+              {view==='export'    && <ExportScreen games={games} categories={categories} playerName={playerName} onBack={()=>setView('progress')} {...props}/>}
+              {view==='editGame'  && editingGame && <EditGame game={editingGame} categories={categories}
+                onSave={async g=>{
+                  try{
+                    await sbSaveGame(g);
+                    setGames(gs=>gs.map(x=>x.id===g.id?g:x));
+                    setEditingGame(null);
+                    setView('games');
+                  }catch(e){
+                    console.error('EditGame save failed:',e);
+                    alert('Save failed: '+e.message);
+                  }
+                }}
+                onBack={()=>{setEditingGame(null);setView('games');}}/>}
+              {view==='gameDetail'&& analysingGame && <GameDetail game={analysingGame} categories={categories} onBack={()=>{setAnalysingGame(null);setView('games');}} {...props}/>}
+              {/* GameSummary is now an overlay — see below */}
+              {view==='gameCompare'&& comparisonConfig && <GameComparison config={comparisonConfig} allGames={games} categories={categories} onBack={()=>{setComparisonConfig(null);setView('games');}} {...props}/>}
+
+            </div>
+            {showNav && <BottomNav view={view} setView={setView}/>}
+            {/* GameSummary overlay — fixed position, immune to parent overflow */}
+            {summaryGame&&(
+              <div style={{position:'fixed',top:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:520,bottom:0,zIndex:200,background:G.bg,display:'flex',flexDirection:'column'}}>
+                <GameSummary
+                  game={summaryGame}
+                  categories={categories}
+                  onBack={()=>setSummaryGame(null)}
+                  onDelete={id=>{setSummaryGame(null);deleteGame(id);}}
+                  onEdit={g=>{setSummaryGame(null);setEditingGame(g);setView('editGame');}}
+                  onAnalyse={g=>{setSummaryGame(null);setAnalysingGame(g);setView('gameDetail');}}
+                  {...props}/>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </LangCtx.Provider>
+  );
+}
