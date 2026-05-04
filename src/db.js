@@ -47,7 +47,6 @@ export async function saveProfile(updates) {
   const { error } = await supabase.from('profiles').upsert({
     id: user.id,
     ...updates,
-    updated_at: new Date().toISOString()
   })
   if (error) console.error('saveProfile error:', error)
 }
