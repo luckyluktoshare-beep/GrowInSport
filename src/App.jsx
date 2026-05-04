@@ -1201,6 +1201,8 @@ function ActiveGame({setup,categories,onEnd}){
   const activeCats=categories.filter(c=>c.measures.some(m=>m.active));
   useEffect(()=>{ if(!activeCat&&activeCats.length) setActiveCat(activeCats[0].id); },[]);
 
+  const lang = useLang();   // needed for voice recognition language
+
   // Voice recognition effect
   useEffect(()=>{
     if(!voiceOn||!voiceSupported||timerState!=='running') return;
