@@ -3768,7 +3768,7 @@ export default function GrowInSport(){
             <div style={{flex:1,overflowY:'auto',display:'flex',flexDirection:'column'}}>
               {view==='dashboard' && <Dashboard    games={games} categories={categories} playerName={playerName} age={age} onStartGame={()=>setView('newGame')} onDonate={()=>window.open('https://ko-fi.com/luckyluk','_blank')} onFeedback={()=>setView('feedback')} onEdit={handleEdit} onAnalyse={handleAnalyse} onSummary={handleSummary} {...props}/>}
               {view==='games'     && <GamesList    games={games} categories={categories} onStartGame={()=>setView('newGame')} onDelete={deleteGame} onEdit={handleEdit} onAnalyse={handleAnalyse} onCompare={handleCompare} onSummary={handleSummary} {...props}/>}
-              {view==='newGame'   && <NewGameSetup categories={categories} onStart={s=>{gameSetupRef.current=s;setGameSetup(s);}} onBack={()=>setView('games')} {...props}/>}
+              {view==='newGame'   && <NewGameSetup categories={categories} onStart={s=>{console.log('onStart called',s);gameSetupRef.current=s;setGameSetup(s);setView('games');}} onBack={()=>setView('games')} {...props}/>}
               {view==='activeGame'&& gameSetup && <ActiveGame setup={gameSetup} categories={categories} onEnd={g=>{sbSaveGame(g);setGames(gs=>[...gs,g]);setGameSetup(null);setSummaryGame(g);setView('games');}}/>}
               {view==='activeGame'&& !gameSetup && <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center'}}><button onClick={()=>setView('games')} style={{...btnSt(G.blue),padding:'14px 24px'}}>← Back to games</button></div>}
               {view==='progress'  && <ProgressView games={games} categories={categories} {...props}/>}
@@ -3795,7 +3795,7 @@ export default function GrowInSport(){
             </div>
             {showNav && <BottomNav view={view} setView={setView}/>}
             {/* ActiveGame overlay — full screen, renders immediately when gameSetup set */}
-            {(gameSetup||gameSetupRef.current)&&(
+            {(gameSetup||gameSetupRef.current)&&(console.log('Rendering ActiveGame overlay',gameSetup),true)&&(
               <div style={{position:'fixed',top:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:520,bottom:0,zIndex:300,background:G.bg,display:'flex',flexDirection:'column'}}>
                 <ActiveGame
                   setup={gameSetup||gameSetupRef.current}
