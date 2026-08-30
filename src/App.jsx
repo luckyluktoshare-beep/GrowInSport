@@ -3887,7 +3887,7 @@ export default function GrowInSport(){
               <div style={{position:'fixed',top:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:520,bottom:0,zIndex:300,background:G.bg,display:'flex',flexDirection:'column'}}>
                 <ActiveGame
                   setup={gameSetup||gameSetupRef.current}
-                  draft={draftGame?.setup===gameSetup ? draftGame : null}
+                  draft={draftGame||null}
                   categories={categories}
                   onEnd={g=>{
                     sbSaveGame(g);
