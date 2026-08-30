@@ -1130,24 +1130,24 @@ function buildVoiceMap(categories, lang){
   };
   // Built-in aliases per language for common metrics
   const ALIASES = {
-    goals:               {PL:['gol','bramka'],         EN:['goal','goals'],                    DE:['tor','tore'],              FR:['but','buts'],              IT:['gol','rete'],              ES:['gol','goles']},
-    passes_completed:    {PL:['podanie','pas'],       EN:['pass','passes','completed'],       DE:['pass','pässe'],            FR:['passe','passes'],          IT:['passaggio','passaggi'],    ES:['pase','pases']},
-    passes_attempted:    {PL:['próba podania'],           EN:['attempted','pass attempt'],        DE:['passversuch'],             FR:['passe tentée'],            IT:['passaggio tentato'],       ES:['pase intentado']},
-    key_passes:          {PL:['kluczowe podanie'],           EN:['key pass','key'],                  DE:['schlüsselpass'],           FR:['passe clé'],               IT:['passaggio chiave'],        ES:['pase clave']},
+    goals:               {PL:['gol','gole','bramka','bramki'],         EN:['goal','goals'],                    DE:['tor','tore'],              FR:['but','buts'],              IT:['gol','rete'],              ES:['gol','goles']},
+    passes_completed:    {PL:['podanie','podania','pas','celne'],       EN:['pass','passes','completed'],       DE:['pass','pässe'],            FR:['passe','passes'],          IT:['passaggio','passaggi'],    ES:['pase','pases']},
+    passes_attempted:    {PL:['próba podania','próby podań'],           EN:['attempted','pass attempt'],        DE:['passversuch'],             FR:['passe tentée'],            IT:['passaggio tentato'],       ES:['pase intentado']},
+    key_passes:          {PL:['kluczowe','kluczowe podanie'],           EN:['key pass','key'],                  DE:['schlüsselpass'],           FR:['passe clé'],               IT:['passaggio chiave'],        ES:['pase clave']},
     long_passes:         {PL:['długie','długie podanie','długi pas'],   EN:['long','long pass'],                DE:['langer pass'],             FR:['longue passe'],            IT:['passaggio lungo'],         ES:['pase largo']},
     assists:             {PL:['asysta','asysty'],                       EN:['assist','assists'],                DE:['vorlage','vorlagen'],      FR:['passe décisive'],          IT:['assist'],                  ES:['asistencia']},
-    shots_on_target:     {PL:['strzał celny'],       EN:['shot','shots','on target'],        DE:['schuss','schüsse'],        FR:['tir','tirs'],              IT:['tiro','tiri'],             ES:['disparo','tiros']},
-    shots_off_target:    {PL:['strzał niecelny', 'niecelny strzał'],      EN:['off target','miss','missed'],      DE:['schuss daneben'],          FR:['tir non cadré'],           IT:['tiro fuori'],              ES:['tiro desviado','fallo']},
-    dribbles_completed:  {PL:['drybling udany'],             EN:['dribble','dribbles'],              DE:['dribbling'],               FR:['dribble','dribbles'],      IT:['dribbling'],               ES:['regate','regates']},
-    dribbles_attempted:  {PL:['próba dryblingu','drybling próba'],EN:['dribble attempt','attempt'],     DE:['dribbling versuch'],       FR:['dribble tenté'],           IT:['dribbling tentato'],       ES:['regate intentado']},
-    tackles_won:         {PL:['odbiór'],             EN:['tackle','tackles'],                DE:['zweikampf'],               FR:['tacle','tacles'],          IT:['contrasto'],               ES:['entrada','entradas']},
-    interceptions:       {PL:['przechwyt'],                EN:['interception','interceptions'],    DE:['abfangen'],                FR:['interception'],            IT:['intercettazione'],         ES:['intercepción']},
-    clearances:          {PL:['wybicie'],                     EN:['clear','clearance','clearances'],  DE:['klärung'],                 FR:['dégagement'],              IT:['rinvio'],                  ES:['despeje']},
-    blocks:              {PL:['blok'],                          EN:['block','blocks'],                  DE:['block','blocks'],          FR:['blocage'],                 IT:['blocco'],                  ES:['bloqueo']},
-    headers_won:         {PL:['wygrana główka', 'główka wygrana'],                       EN:['header','headers'],                DE:['kopfball'],                FR:['tête','têtes'],            IT:['colpo di testa'],          ES:['cabezazo']},
-    duels_won:           {PL:['wygrany pojedynek','pojedynek wygrany'],          EN:['duel','duels','duel won'],         DE:['duell'],                   FR:['duel','duels'],            IT:['duello'],                  ES:['duelo']},
-    fouls:               {PL:['faul','przewinienie'],           EN:['foul','fouls'],                    DE:['foul','fouls'],            FR:['faute','fautes'],          IT:['fallo','falli'],           ES:['falta','faltas']},
-    touches:             {PL:['dotknięcie','kontakt'],     EN:['touch','touches'],                 DE:['ballkontakt'],             FR:['touche','contact'],        IT:['tocco'],                   ES:['toque']},
+    shots_on_target:     {PL:['strzał','strzały','strzał celny'],       EN:['shot','shots','on target'],        DE:['schuss','schüsse'],        FR:['tir','tirs'],              IT:['tiro','tiri'],             ES:['disparo','tiros']},
+    shots_off_target:    {PL:['strzał niecelny','niecelny','obok'],     EN:['off target','miss','missed'],      DE:['schuss daneben'],          FR:['tir non cadré'],           IT:['tiro fuori'],              ES:['tiro desviado','fallo']},
+    dribbles_completed:  {PL:['drybling','dryble','udany'],             EN:['dribble','dribbles'],              DE:['dribbling'],               FR:['dribble','dribbles'],      IT:['dribbling'],               ES:['regate','regates']},
+    dribbles_attempted:  {PL:['próba dryblingu','próba','drybling próba'],EN:['dribble attempt','attempt'],     DE:['dribbling versuch'],       FR:['dribble tenté'],           IT:['dribbling tentato'],       ES:['regate intentado']},
+    tackles_won:         {PL:['odbiór','odbior','odbiory'],             EN:['tackle','tackles'],                DE:['zweikampf'],               FR:['tacle','tacles'],          IT:['contrasto'],               ES:['entrada','entradas']},
+    interceptions:       {PL:['przechwyt','przechwyty'],                EN:['interception','interceptions'],    DE:['abfangen'],                FR:['interception'],            IT:['intercettazione'],         ES:['intercepción']},
+    clearances:          {PL:['wybicie','wybicia'],                     EN:['clear','clearance','clearances'],  DE:['klärung'],                 FR:['dégagement'],              IT:['rinvio'],                  ES:['despeje']},
+    blocks:              {PL:['blok','bloki'],                          EN:['block','blocks'],                  DE:['block','blocks'],          FR:['blocage'],                 IT:['blocco'],                  ES:['bloqueo']},
+    headers_won:         {PL:['główka','główki'],                       EN:['header','headers'],                DE:['kopfball'],                FR:['tête','têtes'],            IT:['colpo di testa'],          ES:['cabezazo']},
+    duels_won:           {PL:['pojedynek','duel','pojedynki'],          EN:['duel','duels','duel won'],         DE:['duell'],                   FR:['duel','duels'],            IT:['duello'],                  ES:['duelo']},
+    fouls:               {PL:['faul','faule','przewinienie'],           EN:['foul','fouls'],                    DE:['foul','fouls'],            FR:['faute','fautes'],          IT:['fallo','falli'],           ES:['falta','faltas']},
+    touches:             {PL:['dotknięcie','kontakt','dotknięcia'],     EN:['touch','touches'],                 DE:['ballkontakt'],             FR:['touche','contact'],        IT:['tocco'],                   ES:['toque']},
     yellow_cards:        {PL:['żółta','żółte','kartka'],                EN:['yellow','yellow card'],            DE:['gelb','gelbe karte'],      FR:['carton jaune'],            IT:['giallo','cartellino'],     ES:['amarilla','tarjeta amarilla']},
   };
   for(const cat of categories){
@@ -1163,32 +1163,32 @@ function buildVoiceMap(categories, lang){
   return map;
 }
 
-function ActiveGame({setup,categories,onEnd}){
+function ActiveGame({setup,draft,categories,onEnd}){
   const t=useT();
   const periods       = setup.periods||1;
   const perPeriodMins = periods>1 ? Math.round(setup.totalMins/periods) : setup.totalMins;
 
   // ── State ────────────────────────────────────────────────────────
-  const [metrics,       setMetrics]      = useState({});
-  const [periodMetrics, setPeriodMetrics]= useState([{}]);
-  const [events,        setEvents]       = useState([]);
+  const [metrics,       setMetrics]      = useState(()=>draft?.metrics||{});
+  const [periodMetrics, setPeriodMetrics]= useState(()=>draft?.periodMetrics||[{}]);
+  const [events,        setEvents]       = useState(()=>draft?.events||[]);
   const [activeCat,     setActiveCat]    = useState(null);
 
   // Timer state: 'idle'|'running'|'paused'|'period_break'|'ended'
-  const [timerState,    setTimerState]   = useState('idle');
-  const [elapsed,       setElapsed]      = useState(0);   // total ms running across all periods
-  const [periodElapsedMs,setPeriodElapsedMs]=useState(0); // ms within current period only
+  const [timerState,    setTimerState]   = useState(()=>draft?'paused':'idle');
+  const [elapsed,       setElapsed]      = useState(()=>draft?.totalAccMs||0);
+  const [periodElapsedMs,setPeriodElapsedMs]=useState(0);
 
-  const [currentPeriod, setCurrentPeriod]= useState(1);
-  const [periodStarts,  setPeriodStarts] = useState([]);   // wall ms when each period started
-  const [periodLog,     setPeriodLog]    = useState([]);
-  const [gameStartWall] = useState(()=>new Date().toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit',second:'2-digit'}));
+  const [currentPeriod, setCurrentPeriod]= useState(()=>draft?.currentPeriod||1);
+  const [periodStarts,  setPeriodStarts] = useState([]);
+  const [periodLog,     setPeriodLog]    = useState(()=>draft?.periodLog||[]);
+  const [gameStartWall] = useState(()=>draft?.gameStartWall||new Date().toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit',second:'2-digit'}));
   const [gameEndWall,   setGameEndWall]  = useState(null);
 
   const [onPitch,       setOnPitch]      = useState(true);
-  const [subs,          setSubs]         = useState([]);
+  const [subs,          setSubs]         = useState(()=>draft?.subs||[]);
   const [showPosPick,   setShowPosPick]  = useState(false);
-  const [position,      setPosition]     = useState(setup.position||9);
+  const [position,      setPosition]     = useState(()=>draft?.position||setup.position||9);
   // Voice recognition
   const [voiceOn,       setVoiceOn]      = useState(false);
   const [voiceSupported]=useState(()=>'SpeechRecognition' in window||'webkitSpeechRecognition' in window);
@@ -1197,11 +1197,11 @@ function ActiveGame({setup,categories,onEnd}){
   const [endScreen,     setEndScreen]    = useState(false);
   const [overrideMins,  setOverrideMins] = useState(null);
 
-  // Timer refs
+  // Timer refs — restore accumulated time from draft
   const timerRef        = useRef(null);
-  const periodStartRef  = useRef(null);   // Date.now() when current period timer last started
-  const periodAccRef    = useRef(0);      // ms accumulated in current period before last pause
-  const totalAccRef     = useRef(0);      // ms accumulated in all previous periods
+  const periodStartRef  = useRef(null);
+  const periodAccRef    = useRef(0);
+  const totalAccRef     = useRef(draft?.totalAccMs||0);  // restored from draft if available
 
   const activeCats=categories.filter(c=>c.measures.some(m=>m.active));
   useEffect(()=>{ if(!activeCat&&activeCats.length) setActiveCat(activeCats[0].id); },[]);
@@ -1257,6 +1257,47 @@ function ActiveGame({setup,categories,onEnd}){
   useEffect(()=>()=>{ if(timerRef.current) clearInterval(timerRef.current); },[]);
 
   // ── Timer control ─────────────────────────────────────────────────
+  // Wake Lock — keeps screen on while game is running
+  const wakeLockRef = useRef(null);
+  const acquireWakeLock = async () => {
+    try {
+      if('wakeLock' in navigator && !wakeLockRef.current) {
+        wakeLockRef.current = await navigator.wakeLock.request('screen');
+        wakeLockRef.current.addEventListener('release', () => { wakeLockRef.current = null; });
+      }
+    } catch(e) { console.log('Wake lock not available:', e.message); }
+  };
+  const releaseWakeLock = () => {
+    if(wakeLockRef.current) { wakeLockRef.current.release(); wakeLockRef.current = null; }
+  };
+  // Re-acquire if page becomes visible again (e.g. after switching apps)
+  useEffect(()=>{
+    const onVisible = () => { if(timerState==='running') acquireWakeLock(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  },[timerState]);
+
+  const GAME_DRAFT_KEY = 'gis_active_game_draft';
+
+  // Save draft to localStorage whenever key state changes
+  useEffect(()=>{
+    if(timerState==='idle'||timerState==='ended') return;
+    try {
+      localStorage.setItem(GAME_DRAFT_KEY, JSON.stringify({
+        setup, metrics, periodMetrics, events, subs,
+        currentPeriod, periodLog, position,
+        timerState:'paused', // always restore as paused — safer than mid-run
+        totalAccMs: totalAccRef.current + periodAccRef.current +
+          (timerState==='running' ? Date.now()-periodStartRef.current : 0),
+        gameStartWall,
+        savedAt: Date.now(),
+      }));
+    } catch(e) { console.warn('Draft save failed:', e); }
+  },[metrics, periodMetrics, events, currentPeriod, periodLog, timerState]);
+
+  // Clear draft when game is saved
+  const clearDraft = () => { try { localStorage.removeItem(GAME_DRAFT_KEY); } catch(e){} };
+
   const startTimer=()=>{
     periodStartRef.current=Date.now();
     timerRef.current=setInterval(()=>{
@@ -1276,6 +1317,7 @@ function ActiveGame({setup,categories,onEnd}){
 
   // ── Actions ───────────────────────────────────────────────────────
   const handleStart=()=>{
+    acquireWakeLock();
     const wall=wallNow();
     setPeriodLog(pl=>[...pl,{period:currentPeriod,startWall:wall}]);
     setSubs(s=>[...s,{elapsedMs:0,type:'on',period:currentPeriod}]);
@@ -1285,12 +1327,14 @@ function ActiveGame({setup,categories,onEnd}){
 
   const handlePause=()=>{
     pauseTimer();
+    releaseWakeLock();
     setTimerState('paused');
     const ms=nowMs();
     setSubs(s=>[...s,{elapsedMs:ms,type:'off',period:currentPeriod}]);
   };
 
   const handleResume=()=>{
+    acquireWakeLock();
     setTimerState('running');
     startTimer();
     const ms=nowMs();
@@ -1319,6 +1363,7 @@ function ActiveGame({setup,categories,onEnd}){
   };
 
   const handleStartNextPeriod=()=>{
+    acquireWakeLock();
     const wall=wallNow();
     setPeriodLog(pl=>[...pl,{period:currentPeriod,startWall:wall}]);
     setTimerState('running');
@@ -1327,6 +1372,8 @@ function ActiveGame({setup,categories,onEnd}){
 
   const handleEndGame=()=>{
     if(timerState==='running') pauseTimer();
+    releaseWakeLock();
+    clearDraft();
     const wall=wallNow();
     const periodMs=periodAccRef.current;
     // Close final period if not already closed
@@ -3699,6 +3746,7 @@ export default function GrowInSport(){
   const [summaryGame,  setSummaryGame]  =useState(null);
   const [comparisonConfig,setComparisonConfig]=useState(null);
   const [booting,    setBooting]   =useState(true);
+  const [draftGame,  setDraftGame] =useState(null); // recovered game draft
 
   useEffect(()=>{
     getSession().then(async session=>{
@@ -3716,6 +3764,19 @@ export default function GrowInSport(){
         }catch(e){ console.error('Session restore error:',e); }
       }
       setBooting(false);
+      // Check for interrupted game draft
+      try {
+        const raw = localStorage.getItem('gis_active_game_draft');
+        if(raw) {
+          const draft = JSON.parse(raw);
+          // Only offer restore if draft is less than 6 hours old
+          if(draft && Date.now() - draft.savedAt < 6*60*60*1000) {
+            setDraftGame(draft);
+          } else {
+            localStorage.removeItem('gis_active_game_draft');
+          }
+        }
+      } catch(e) {}
     });
   },[]);
 
@@ -3801,11 +3862,32 @@ export default function GrowInSport(){
 
             </div>
             {showNav && <BottomNav view={view} setView={setView}/>}
-            {/* ActiveGame overlay — full screen, renders immediately when gameSetup set */}
+            {/* Draft recovery banner */}
+            {draftGame&&!gameSetup&&(
+              <div style={{position:'fixed',top:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:520,zIndex:400,background:G.orange,padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
+                <div style={{color:'white',fontSize:13,fontWeight:700}}>
+                  ⚠️ Niedokończona gra — chcesz kontynuować?
+                </div>
+                <div style={{display:'flex',gap:8,flexShrink:0}}>
+                  <button onClick={()=>{
+                    gameSetupRef.current=draftGame.setup;
+                    setGameSetup(draftGame.setup);
+                    setDraftGame(null);
+                  }} style={{background:'white',color:G.orange,border:'none',borderRadius:8,padding:'6px 12px',fontWeight:700,fontSize:12,cursor:'pointer',fontFamily:'inherit'}}>
+                    Wznów
+                  </button>
+                  <button onClick={()=>{localStorage.removeItem('gis_active_game_draft');setDraftGame(null);}} style={{background:'rgba(255,255,255,.3)',color:'white',border:'none',borderRadius:8,padding:'6px 10px',fontWeight:700,fontSize:12,cursor:'pointer',fontFamily:'inherit'}}>
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
+            {/* ActiveGame overlay */}
             {(gameSetup||gameSetupRef.current)&&(console.log('Rendering ActiveGame overlay',gameSetup),true)&&(
               <div style={{position:'fixed',top:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:520,bottom:0,zIndex:300,background:G.bg,display:'flex',flexDirection:'column'}}>
                 <ActiveGame
                   setup={gameSetup||gameSetupRef.current}
+                  draft={draftGame?.setup===gameSetup ? draftGame : null}
                   categories={categories}
                   onEnd={g=>{
                     sbSaveGame(g);
