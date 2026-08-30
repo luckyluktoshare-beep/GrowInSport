@@ -3747,6 +3747,7 @@ export default function GrowInSport(){
   const [comparisonConfig,setComparisonConfig]=useState(null);
   const [booting,    setBooting]   =useState(true);
   const [draftGame,  setDraftGame] =useState(null); // recovered game draft
+  const draftRef = useRef(null);  // ref so draft survives setDraftGame(null)
 
   useEffect(()=>{
     getSession().then(async session=>{
@@ -3871,6 +3872,7 @@ export default function GrowInSport(){
                 <div style={{display:'flex',gap:8,flexShrink:0}}>
                   <button onClick={()=>{
                     gameSetupRef.current=draftGame.setup;
+                    draftRef.current=draftGame;
                     setGameSetup(draftGame.setup);
                     setDraftGame(null);
                   }} style={{background:'white',color:G.orange,border:'none',borderRadius:8,padding:'6px 12px',fontWeight:700,fontSize:12,cursor:'pointer',fontFamily:'inherit'}}>
@@ -3887,12 +3889,13 @@ export default function GrowInSport(){
               <div style={{position:'fixed',top:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:520,bottom:0,zIndex:300,background:G.bg,display:'flex',flexDirection:'column'}}>
                 <ActiveGame
                   setup={gameSetup||gameSetupRef.current}
-                  draft={draftGame||null}
+                  draft={draftRef.current||null}
                   categories={categories}
                   onEnd={g=>{
                     sbSaveGame(g);
                     setGames(gs=>[...gs,g]);
                     gameSetupRef.current=null;
+                    draftRef.current=null;
                     setGameSetup(null);
                     setSummaryGame(g);
                   }}/>
