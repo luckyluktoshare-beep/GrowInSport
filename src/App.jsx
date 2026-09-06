@@ -1788,29 +1788,18 @@ function getSegVal(g,mId,seg){
 // ─── Game Summary ─────────────────────────────────────────────────
 // Metric pairs for effectiveness % calculation
 const EFFECTIVENESS_PAIRS = [
-  // Pass accuracy: successful / (successful + failed attempts)
   {
     completed: ['passes_completed','key_passes','assists'],
     failed:    ['passes_attempted'],
     labelPL:   'Skuteczność podań',
     labelEN:   'Pass accuracy',
   },
-  // Key pass rate: key passes / all successful passes
-  {
-    completed: ['key_passes','assists'],
-    failed:    [],
-    total_ids: ['passes_completed','key_passes','assists'],
-    labelPL:   'Kluczowe podania',
-    labelEN:   'Key pass rate',
-  },
-  // Shot accuracy: shots on target (incl goals) / all shots
   {
     completed: ['shots_on_target','goals'],
     failed:    ['shots_off_target'],
     labelPL:   'Celność strzałów',
     labelEN:   'Shot accuracy',
   },
-  // Conversion: goals / shots on target (incl goals)
   {
     completed: ['goals'],
     failed:    [],
@@ -1818,7 +1807,6 @@ const EFFECTIVENESS_PAIRS = [
     labelPL:   'Skuteczność finalizacji',
     labelEN:   'Conversion rate',
   },
-  // Dribble success: completed / (completed + failed)
   {
     completed: ['dribbles_completed'],
     failed:    ['dribbles_attempted'],
