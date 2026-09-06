@@ -1270,29 +1270,43 @@ function ActiveGame({setup,draft,categories,onEnd}){
   const releaseWakeLock = () => {
     if(wakeLockRef.current) { wakeLockRef.current.release(); wakeLockRef.current = null; }
   };
-  // Re-acquire if page becomes visible again (e.g. after switching apps)
+  // Re-acquire wake lock and save draft if page becomes hidden (user switches apps)
   useEffect(()=>{
     const onVisible = () => { if(timerState==='running') acquireWakeLock(); };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
+    const onHidden  = () => { saveDraftNow(); }; // save immediately when switching away
+    const onUnload  = () => { saveDraftNow(); }; // save on page close/refresh
+    document.addEventListener('visibilitychange', ()=>{ document.hidden ? onHidden() : onVisible(); });
+    window.addEventListener('beforeunload', onUnload);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('beforeunload', onUnload);
+    };
   },[timerState]);
 
   const GAME_DRAFT_KEY = 'gis_active_game_draft';
 
-  // Save draft to localStorage whenever key state changes
-  useEffect(()=>{
+  // Immediate draft save — called directly, not via useEffect
+  const saveDraftNow = (extraState={}) => {
     if(timerState==='idle'||timerState==='ended') return;
     try {
+      const ms = totalAccRef.current + periodAccRef.current +
+        (timerState==='running' ? Date.now()-periodStartRef.current : 0);
       localStorage.setItem(GAME_DRAFT_KEY, JSON.stringify({
         setup, metrics, periodMetrics, events, subs,
         currentPeriod, periodLog, position,
-        timerState:'paused', // always restore as paused — safer than mid-run
-        totalAccMs: totalAccRef.current + periodAccRef.current +
-          (timerState==='running' ? Date.now()-periodStartRef.current : 0),
+        timerState: 'paused',
+        totalAccMs: ms,
         gameStartWall,
         savedAt: Date.now(),
+        ...extraState,
       }));
     } catch(e) { console.warn('Draft save failed:', e); }
+  };
+
+  // Also save via useEffect as backup when state changes
+  useEffect(()=>{
+    if(timerState==='idle'||timerState==='ended') return;
+    saveDraftNow();
   },[metrics, periodMetrics, events, currentPeriod, periodLog, timerState]);
 
   // Clear draft when game is saved
@@ -1341,15 +1355,25 @@ function ActiveGame({setup,draft,categories,onEnd}){
     setSubs(s=>[...s,{elapsedMs:ms,type:'on',period:currentPeriod}]);
   };
 
+  // Helper: calculate duration in minutes from two wall clock strings HH:MM:SS
+  const wallDiffMins = (start, end) => {
+    if(!start||!end) return null;
+    const toSec = s => { const p=s.split(':'); return (+p[0])*3600+(+p[1])*60+(+p[2]||0); };
+    return Math.round(Math.abs(toSec(end)-toSec(start))/60);
+  };
+
   const handleEndPeriod=()=>{
     if(timerState==='running') pauseTimer();
     const ms=nowMs();
     const wall=wallNow();
     const periodMs=periodAccRef.current+(timerState==='running'?Date.now()-periodStartRef.current:0);
-    // Close current period in log
+    // Close current period in log — use wall clock for display duration
     setPeriodLog(pl=>{
       const up=[...pl];
-      if(up.length>0) up[up.length-1]={...up[up.length-1],endWall:wall,durationMins:Math.round(periodMs/60000)};
+      if(up.length>0){
+        const dur = wallDiffMins(up[up.length-1].startWall, wall);
+        up[up.length-1]={...up[up.length-1],endWall:wall,durationMins:dur};
+      }
       return up;
     });
     // Accumulate period into total
@@ -1376,11 +1400,12 @@ function ActiveGame({setup,draft,categories,onEnd}){
     clearDraft();
     const wall=wallNow();
     const periodMs=periodAccRef.current;
-    // Close final period if not already closed
+    // Close final period if not already closed — use wall clock for duration
     setPeriodLog(pl=>{
       const up=[...pl];
       if(up.length>0&&!up[up.length-1].endWall){
-        up[up.length-1]={...up[up.length-1],endWall:wall,durationMins:Math.round(periodMs/60000)};
+        const dur = wallDiffMins(up[up.length-1].startWall, wall);
+        up[up.length-1]={...up[up.length-1],endWall:wall,durationMins:dur};
       }
       return up;
     });
@@ -1750,6 +1775,47 @@ function getSegVal(g,mId,seg){
 }
 
 // ─── Game Summary ─────────────────────────────────────────────────
+// Metric pairs for effectiveness % calculation
+const EFFECTIVENESS_PAIRS = [
+  // Pass accuracy: completed / attempted (key passes and assists count as completed passes)
+  {
+    completed:['passes_completed','key_passes','assists'],
+    attempted:'passes_attempted',
+    labelPL:'Skuteczność podań',
+    labelEN:'Pass accuracy',
+  },
+  // Key pass accuracy: key passes / completed passes
+  {
+    completed:['key_passes','assists'],
+    attempted:['passes_completed','key_passes','assists'],
+    labelPL:'Kluczowe podania',
+    labelEN:'Key pass rate',
+  },
+  // Shot accuracy: on target (incl. goals) / all shots
+  {
+    completed:['shots_on_target','goals'],
+    attempted:['shots_on_target','shots_off_target','goals'],
+    labelPL:'Celność strzałów',
+    labelEN:'Shot accuracy',
+    mode:'sum_of_total',
+  },
+  // Conversion rate: goals / shots on target (incl. goals)
+  {
+    completed:['goals'],
+    attempted:['shots_on_target','goals'],
+    labelPL:'Skuteczność finalizacji',
+    labelEN:'Conversion rate',
+    mode:'sum_of_total',
+  },
+  // Dribble success: completed / attempted
+  {
+    completed:['dribbles_completed'],
+    attempted:'dribbles_attempted',
+    labelPL:'Skuteczność dryblingu',
+    labelEN:'Dribble success',
+  },
+];
+
 function GameSummary({game, categories, onBack, onAnalyse, onEdit, onDelete, lang, setLang}){
   const t       = useT();
   const typeDef = gameTypeDef(game.type);
@@ -1909,7 +1975,49 @@ function GameSummary({game, categories, onBack, onAnalyse, onEdit, onDelete, lan
                   </div>
                 );
               })}
-            </div>
+            {/* Effectiveness % for this category */}
+            {(()=>{
+              const getSum = (ids, metrics) => {
+                const arr = Array.isArray(ids) ? ids : [ids];
+                return arr.reduce((s,id)=>s+(metrics?.[id]||0), 0);
+              };
+              const rows = EFFECTIVENESS_PAIRS.filter(p=>{
+                const compIds = Array.isArray(p.completed)?p.completed:[p.completed];
+                const attIds  = Array.isArray(p.attempted)?p.attempted:[p.attempted];
+                // Show only if at least one metric from each side is in this category
+                const catIds  = meas.map(m=>m.id);
+                return compIds.some(id=>catIds.includes(id)) && attIds.some(id=>catIds.includes(id));
+              }).map(p=>{
+                const done  = getSum(p.completed, game.metrics);
+                const total = getSum(p.attempted, game.metrics);
+                const label = lang==='PL'?p.labelPL:p.labelEN;
+                if(!total) return null;
+                const pct = Math.round((done/total)*100);
+                return {label, pct, done, total, note:`${done}/${total}`};
+              }).filter(Boolean);
+              if(!rows.length) return null;
+              return(
+                <div style={{borderTop:`2px solid ${cat.color}22`,marginTop:8,paddingTop:8}}>
+                  {rows.map((row,i)=>(
+                    <div key={i} style={{marginBottom:6}}>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:2}}>
+                        <span style={{fontSize:11,fontWeight:700,color:cat.color}}>{row.label}</span>
+                        <span style={{fontSize:13,fontWeight:900,color:row.pct>=70?G.green:row.pct>=40?G.orange:G.red}}>
+                          {row.pct}% <span style={{fontSize:10,color:G.muted,fontWeight:400}}>({row.note})</span>
+                        </span>
+                      </div>
+                      <div style={{height:6,background:G.grayL,borderRadius:3,overflow:'hidden'}}>
+                        <div style={{height:'100%',borderRadius:3,
+                          width:row.pct+'%',
+                          background:row.pct>=70?G.green:row.pct>=40?G.orange:G.red,
+                          transition:'width .4s'}}/>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
           );
         })}
       </div>
