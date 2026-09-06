@@ -1777,42 +1777,42 @@ function getSegVal(g,mId,seg){
 // ─── Game Summary ─────────────────────────────────────────────────
 // Metric pairs for effectiveness % calculation
 const EFFECTIVENESS_PAIRS = [
-  // Pass accuracy: completed / attempted (key passes and assists count as completed passes)
+  // Pass accuracy: successful / (successful + failed attempts)
   {
-    completed:['passes_completed','key_passes','assists'],
-    attempted:'passes_attempted',
-    labelPL:'Skuteczność podań',
-    labelEN:'Pass accuracy',
+    completed: ['passes_completed','key_passes','assists'],
+    failed:    ['passes_attempted'],
+    labelPL:   'Skuteczność podań',
+    labelEN:   'Pass accuracy',
   },
-  // Key pass accuracy: key passes / completed passes
+  // Key pass rate: key passes / all successful passes
   {
-    completed:['key_passes','assists'],
-    attempted:['passes_completed','key_passes','assists'],
-    labelPL:'Kluczowe podania',
-    labelEN:'Key pass rate',
+    completed: ['key_passes','assists'],
+    failed:    [],
+    total_ids: ['passes_completed','key_passes','assists'],
+    labelPL:   'Kluczowe podania',
+    labelEN:   'Key pass rate',
   },
-  // Shot accuracy: on target (incl. goals) / all shots
+  // Shot accuracy: shots on target (incl goals) / all shots
   {
-    completed:['shots_on_target','goals'],
-    attempted:['shots_on_target','shots_off_target','goals'],
-    labelPL:'Celność strzałów',
-    labelEN:'Shot accuracy',
-    mode:'sum_of_total',
+    completed: ['shots_on_target','goals'],
+    failed:    ['shots_off_target'],
+    labelPL:   'Celność strzałów',
+    labelEN:   'Shot accuracy',
   },
-  // Conversion rate: goals / shots on target (incl. goals)
+  // Conversion: goals / shots on target (incl goals)
   {
-    completed:['goals'],
-    attempted:['shots_on_target','goals'],
-    labelPL:'Skuteczność finalizacji',
-    labelEN:'Conversion rate',
-    mode:'sum_of_total',
+    completed: ['goals'],
+    failed:    [],
+    total_ids: ['shots_on_target','goals'],
+    labelPL:   'Skuteczność finalizacji',
+    labelEN:   'Conversion rate',
   },
-  // Dribble success: completed / attempted
+  // Dribble success: completed / (completed + failed)
   {
-    completed:['dribbles_completed'],
-    attempted:'dribbles_attempted',
-    labelPL:'Skuteczność dryblingu',
-    labelEN:'Dribble success',
+    completed: ['dribbles_completed'],
+    failed:    ['dribbles_attempted'],
+    labelPL:   'Skuteczność dryblingu',
+    labelEN:   'Dribble success',
   },
 ];
 
@@ -1982,17 +1982,22 @@ function GameSummary({game, categories, onBack, onAnalyse, onEdit, onDelete, lan
                 return arr.reduce((s,id)=>s+(metrics?.[id]||0), 0);
               };
               const rows = EFFECTIVENESS_PAIRS.filter(p=>{
-                const compIds = Array.isArray(p.completed)?p.completed:[p.completed];
-                const attIds  = Array.isArray(p.attempted)?p.attempted:[p.attempted];
+                const compIds  = Array.isArray(p.completed)?p.completed:[p.completed];
+                const failIds  = Array.isArray(p.failed)?p.failed:[...(p.failed||[])];
+                const totalIds = p.total_ids ? (Array.isArray(p.total_ids)?p.total_ids:[p.total_ids]) : [...compIds,...failIds];
+                const catIds   = meas.map(m=>m.id);
                 // Show only if at least one metric from each side is in this category
-                const catIds  = meas.map(m=>m.id);
-                return compIds.some(id=>catIds.includes(id)) && attIds.some(id=>catIds.includes(id));
+                return compIds.some(id=>catIds.includes(id)) &&
+                       totalIds.some(id=>catIds.includes(id));
               }).map(p=>{
-                const done  = getSum(p.completed, game.metrics);
-                const total = getSum(p.attempted, game.metrics);
-                const label = lang==='PL'?p.labelPL:p.labelEN;
+                const compIds  = Array.isArray(p.completed)?p.completed:[p.completed];
+                const failIds  = Array.isArray(p.failed)?p.failed:[...(p.failed||[])];
+                const totalIds = p.total_ids ? (Array.isArray(p.total_ids)?p.total_ids:[p.total_ids]) : [...compIds,...failIds];
+                const done     = getSum(compIds,  game.metrics);
+                const total    = getSum(totalIds, game.metrics);
+                const label    = lang==='PL'?p.labelPL:p.labelEN;
                 if(!total) return null;
-                const pct = Math.round((done/total)*100);
+                const pct = Math.min(100, Math.round((done/total)*100));
                 return {label, pct, done, total, note:`${done}/${total}`};
               }).filter(Boolean);
               if(!rows.length) return null;
