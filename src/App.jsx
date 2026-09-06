@@ -1333,7 +1333,12 @@ function ActiveGame({setup,draft,categories,onEnd}){
   const handleStart=()=>{
     acquireWakeLock();
     const wall=wallNow();
-    setPeriodLog(pl=>[...pl,{period:currentPeriod,startWall:wall}]);
+    // Only add periodLog entry if this period doesn't have one yet
+    setPeriodLog(pl=>{
+      const hasEntry = pl.some(e=>e.period===currentPeriod&&!e.endWall);
+      if(hasEntry) return pl;
+      return [...pl,{period:currentPeriod,startWall:wall}];
+    });
     setSubs(s=>[...s,{elapsedMs:0,type:'on',period:currentPeriod}]);
     setTimerState('running');
     startTimer();
@@ -1367,12 +1372,13 @@ function ActiveGame({setup,draft,categories,onEnd}){
     const ms=nowMs();
     const wall=wallNow();
     const periodMs=periodAccRef.current+(timerState==='running'?Date.now()-periodStartRef.current:0);
-    // Close current period in log — use wall clock for display duration
+    // Close current period in log — find the open entry for this period
     setPeriodLog(pl=>{
       const up=[...pl];
-      if(up.length>0){
-        const dur = wallDiffMins(up[up.length-1].startWall, wall);
-        up[up.length-1]={...up[up.length-1],endWall:wall,durationMins:dur};
+      const idx = up.findIndex(e=>e.period===currentPeriod&&!e.endWall);
+      if(idx>=0){
+        const dur = wallDiffMins(up[idx].startWall, wall);
+        up[idx]={...up[idx],endWall:wall,durationMins:dur};
       }
       return up;
     });
@@ -1389,7 +1395,11 @@ function ActiveGame({setup,draft,categories,onEnd}){
   const handleStartNextPeriod=()=>{
     acquireWakeLock();
     const wall=wallNow();
-    setPeriodLog(pl=>[...pl,{period:currentPeriod,startWall:wall}]);
+    setPeriodLog(pl=>{
+      const hasEntry = pl.some(e=>e.period===currentPeriod&&!e.endWall);
+      if(hasEntry) return pl;
+      return [...pl,{period:currentPeriod,startWall:wall}];
+    });
     setTimerState('running');
     startTimer();
   };
@@ -1400,12 +1410,13 @@ function ActiveGame({setup,draft,categories,onEnd}){
     clearDraft();
     const wall=wallNow();
     const periodMs=periodAccRef.current;
-    // Close final period if not already closed — use wall clock for duration
+    // Close final period — find the open entry for current period
     setPeriodLog(pl=>{
       const up=[...pl];
-      if(up.length>0&&!up[up.length-1].endWall){
-        const dur = wallDiffMins(up[up.length-1].startWall, wall);
-        up[up.length-1]={...up[up.length-1],endWall:wall,durationMins:dur};
+      const idx = up.findIndex(e=>e.period===currentPeriod&&!e.endWall);
+      if(idx>=0){
+        const dur = wallDiffMins(up[idx].startWall, wall);
+        up[idx]={...up[idx],endWall:wall,durationMins:dur};
       }
       return up;
     });
