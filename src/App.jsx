@@ -376,6 +376,15 @@ const TR = {
   voice_unsupported:{PL:'Przeglądarka nie obsługuje głosu',EN:'Voice not supported in this browser',DE:'Stimme nicht unterstützt',FR:'Voix non supportée',IT:'Voce non supportata',ES:'Voz no soportada'},
   voice_heard:      {PL:'Usłyszano',          EN:'Heard',              DE:'Gehört',             FR:'Entendu',           IT:'Sentito',            ES:'Escuchado'         },
 
+  // New shooting metrics
+  m_shots_blocked:    { PL:'Strzały zablokowane', EN:'Shots Blocked',      DE:'Geblockte Schüsse', FR:'Tirs bloqués',      IT:'Tiri bloccati',       ES:'Tiros bloqueados'  },
+  m_goals_penalty:    { PL:'Gole z rzutu karnego',EN:'Penalty Goals',      DE:'Elfmetertore',      FR:'Buts sur penalty',  IT:'Gol su rigore',       ES:'Goles de penalti'  },
+  m_goals_free_kick:  { PL:'Gole z rzutu wolnego',EN:'Free Kick Goals',    DE:'Freistoßtore',      FR:'Buts sur coup franc',IT:'Gol su punizione',   ES:'Goles de falta'    },
+  // New fouls category
+  cat_fouls:          { PL:'Faule',               EN:'Fouls',              DE:'Fouls',             FR:'Fautes',            IT:'Falli',               ES:'Faltas'            },
+  m_fouls_committed:  { PL:'Faule przewinione',   EN:'Fouls Committed',    DE:'Begangene Fouls',   FR:'Fautes commises',   IT:'Falli commessi',      ES:'Faltas cometidas'  },
+  m_fouls_received:   { PL:'Faule otrzymane',     EN:'Fouls Received',     DE:'Erlittene Fouls',   FR:'Fautes reçues',     IT:'Falli subiti',        ES:'Faltas recibidas'  },
+
 };
 
 // ─── Translation helper ───────────────────────────────────────────
@@ -420,8 +429,11 @@ const DEFAULT_CATS = [
   ]},
   {id:'shooting',  nameKey:'cat_shooting',  color:'#E64A19', measures:[
     {id:'goals',             nameKey:'m_goals',             active:true,  custom:false},
+    {id:'goals_penalty',     nameKey:'m_goals_penalty',     active:true,  custom:false},
+    {id:'goals_free_kick',   nameKey:'m_goals_free_kick',   active:true,  custom:false},
     {id:'shots_on_target',   nameKey:'m_shots_on_target',   active:true,  custom:false},
     {id:'shots_off_target',  nameKey:'m_shots_off_target',  active:true,  custom:false},
+    {id:'shots_blocked',     nameKey:'m_shots_blocked',     active:true,  custom:false},
   ]},
   {id:'dribbling', nameKey:'cat_dribbling', color:'#2D8B2D', measures:[
     {id:'dribbles_completed',nameKey:'m_dribbles_completed',active:true,  custom:false},
@@ -433,10 +445,13 @@ const DEFAULT_CATS = [
     {id:'clearances',        nameKey:'m_clearances',        active:true,  custom:false},
     {id:'blocks',            nameKey:'m_blocks',            active:true,  custom:false},
   ]},
+  {id:'fouls',     nameKey:'cat_fouls',     color:'#C62828', measures:[
+    {id:'fouls_committed',   nameKey:'m_fouls_committed',   active:true,  custom:false},
+    {id:'fouls_received',    nameKey:'m_fouls_received',    active:true,  custom:false},
+  ]},
   {id:'physical',  nameKey:'cat_physical',  color:'#BA7517', measures:[
     {id:'headers_won',       nameKey:'m_headers_won',       active:true,  custom:false},
     {id:'duels_won',         nameKey:'m_duels_won',         active:true,  custom:false},
-    {id:'fouls',             nameKey:'m_fouls',             active:false, custom:false},
   ]},
   {id:'general',   nameKey:'cat_general',   color:'#534AB7', measures:[
     {id:'touches',           nameKey:'m_touches',           active:false, custom:false},
@@ -1149,6 +1164,11 @@ function buildVoiceMap(categories, lang){
     fouls:               {PL:['faul','faule','przewinienie'],           EN:['foul','fouls'],                    DE:['foul','fouls'],            FR:['faute','fautes'],          IT:['fallo','falli'],           ES:['falta','faltas']},
     touches:             {PL:['dotknięcie','kontakt','dotknięcia'],     EN:['touch','touches'],                 DE:['ballkontakt'],             FR:['touche','contact'],        IT:['tocco'],                   ES:['toque']},
     yellow_cards:        {PL:['żółta','żółte','kartka'],                EN:['yellow','yellow card'],            DE:['gelb','gelbe karte'],      FR:['carton jaune'],            IT:['giallo','cartellino'],     ES:['amarilla','tarjeta amarilla']},
+    shots_blocked:       {PL:['zablokowany','blok strzału'],            EN:['blocked','shot blocked'],          DE:['geblockt'],                FR:['tir bloqué'],              IT:['tiro bloccato'],           ES:['tiro bloqueado']},
+    goals_penalty:       {PL:['karny','rzut karny','penalty'],          EN:['penalty','penalty goal'],          DE:['elfmeter'],                FR:['penalty'],                 IT:['rigore'],                  ES:['penalti']},
+    goals_free_kick:     {PL:['rzut wolny','wolny'],                    EN:['free kick','freekick'],            DE:['freistoß'],                FR:['coup franc'],              IT:['punizione'],               ES:['tiro libre']},
+    fouls_committed:     {PL:['faul','faule','przewinienie'],           EN:['foul','fouled'],                   DE:['foul'],                    FR:['faute'],                   IT:['fallo'],                   ES:['falta']},
+    fouls_received:      {PL:['sfaulowany','faulowany'],                EN:['fouled me','foul received'],       DE:['gefoult'],                 FR:['faute reçue'],             IT:['fallo subito'],            ES:['falta recibida']},
   };
   for(const cat of categories){
     for(const m of cat.measures.filter(x=>x.active)){
@@ -1788,25 +1808,31 @@ function getSegVal(g,mId,seg){
 // ─── Game Summary ─────────────────────────────────────────────────
 // Metric pairs for effectiveness % calculation
 const EFFECTIVENESS_PAIRS = [
+  // Pass accuracy: (completed + key + assists) / (completed + key + assists + failed)
   {
     completed: ['passes_completed','key_passes','assists'],
     failed:    ['passes_attempted'],
     labelPL:   'Skuteczność podań',
     labelEN:   'Pass accuracy',
   },
+  // Shot accuracy: (on target + goals) / (on target + off target + goals)
+  // shots_blocked NOT included — blocked shots are not about accuracy
   {
-    completed: ['shots_on_target','goals'],
+    completed: ['shots_on_target','goals','goals_penalty','goals_free_kick'],
     failed:    ['shots_off_target'],
     labelPL:   'Celność strzałów',
     labelEN:   'Shot accuracy',
   },
+  // Conversion: goals / (on target + goals + blocked)
+  // shots_blocked IS included — shows how many shot attempts led to goals
   {
-    completed: ['goals'],
+    completed: ['goals','goals_penalty','goals_free_kick'],
     failed:    [],
-    total_ids: ['shots_on_target','goals'],
+    total_ids: ['shots_on_target','goals','goals_penalty','goals_free_kick','shots_blocked'],
     labelPL:   'Skuteczność finalizacji',
     labelEN:   'Conversion rate',
   },
+  // Dribble success: completed / (completed + failed)
   {
     completed: ['dribbles_completed'],
     failed:    ['dribbles_attempted'],
